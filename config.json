@@ -1,0 +1,13 @@
+{
+  "daily_risk": 550,
+  "profit_target": 600,
+  "max_trades_per_day": 6,
+  "default_futures_type": "MES",
+  "default_size": 5,
+  "futures_types": {
+    "ES": { "mf": 50 },
+    "MES": { "mf": 5 }
+  }
+}
+
+
