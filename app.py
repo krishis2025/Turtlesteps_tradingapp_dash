@@ -1,10 +1,10 @@
 import dash
 from dash.dependencies import Input, Output, State
-from dash import dcc, html, dash_table
+from dash import dcc, html, dash_table, callback_context
 import json
 from datetime import datetime
 import pandas as pd
-import plotly.graph_objects as go # Import for Gauge
+import plotly.graph_objects as go
 
 # Load config
 CONFIG_FILE = 'config.json'
@@ -21,24 +21,45 @@ app = dash.Dash(__name__)
 initial_data = []
 
 app.layout = html.Div([
-    html.H2("Trading Dashboard", style={'textAlign': 'center', 'margin-bottom': '20px'}),
-    html.Button('Add Trade', id='add-trade-button', n_clicks=0, style={'margin-bottom': '10px', 'padding': '10px 20px', 'fontSize': '16px', 'cursor': 'pointer'}),
+    html.H2("Trading Dashboard", style={'textAlign': 'center', 'marginBottom': '20px'}),
 
+    # Main container for the two-column indicator section
     html.Div([
-        # Gauge for Available Risk
+        # Column 1: Available Risk Gauge
         html.Div([
-            html.H3("Available Risk", style={'textAlign': 'center', 'margin-top': '0', 'margin-bottom': '5px'}),
+            #html.H3("Available Risk", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
             dcc.Graph(id='available-risk-gauge', config={'displayModeBar': False},
-                      style={'height': '180px'}) # Compact height
-        ], style={'width': '49%', 'display': 'inline-block', 'vertical-align': 'top', 'padding-right': '10px'}),
+                      style={'height': '180px'})
+        ], style={'flex': '1', 'minWidth': '300px', 'paddingRight': '10px'}),
 
-        # Progress Bar for Realized P&L
+        # Column 2: Stacked Progress Bars and Placeholder
         html.Div([
-            html.H3("Realized P&L Progress", style={'textAlign': 'center', 'margin-top': '0', 'margin-bottom': '5px'}),
-            html.Div(id='pnl-progress-bar-container', style={'width': '100%'}),
-        ], style={'width': '49%', 'display': 'inline-block', 'vertical-align': 'top'})
-    ], style={'margin-bottom': '20px', 'display': 'flex', 'justify-content': 'space-around', 'align-items': 'flex-start'}),
+            # Row 1: Realized P&L Progress Bar
+            html.Div([
+                #html.H4("Realized P&L Progress", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                html.Div(id='pnl-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
+            ], style={'marginBottom': '15px'}),
 
+            # Row 2: Trades per Day Progress Bar
+            html.Div([
+                #html.H4("Trades per Day", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                html.Div(id='trades-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
+            ], style={'marginBottom': '30px'}),
+
+            # Row 3: Pressing Roadmap
+            html.Div([
+                # Reverted: No separate hover target div, just the roadmap container
+                #html.H4("Pressing Roadmap", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}), # Re-added the simple H3 title
+                html.Div(id='pressing-roadmap-container', style={'width': '100%', 'height': 'auto', 'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap', 'padding': '10px 0'}),
+            ], style={'marginBottom': '0px'})
+
+        ], style={'flex': '1', 'minWidth': '300px', 'paddingLeft': '10px', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'})
+    ], style={'display': 'flex', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'marginBottom': '20px'}),
+
+    # Add Trade button
+    html.Button('Add Trade', id='add-trade-button', n_clicks=0, style={'marginBottom': '10px', 'padding': '10px 20px', 'fontSize': '16px', 'cursor': 'pointer'}),
+
+    # DataTable
     dash_table.DataTable(
         id='trades-table',
         columns=[
@@ -73,7 +94,7 @@ app.layout = html.Div([
             'Trade came to me': {
                 'options': [{'label': i, 'value': i} for i in ['Yes', 'No']],
                 'clearable': False
-            },\
+            },
             'With Value': {
                 'options': [{'label': i, 'value': i} for i in ['Yes', 'No']],
                 'clearable': False
@@ -92,45 +113,42 @@ app.layout = html.Div([
             },
         },
         style_data_conditional=[
-            # Conditional styling for Risk ($) exceeding daily_risk. This rule will be applied first.
             {
                 'if': {
                     'filter_query': '{Risk ($)} > ' + str(config['daily_risk'])
                 },
-                'backgroundColor': '#FF4136', # Red background
+                'backgroundColor': '#FF4136',
                 'color': 'white'
             },
-            # Conditional row coloring based on Realized P&L.
-            # These rules come after the Risk rule, so they take precedence if both apply.
             {
                 'if': {
                     'filter_query': '{Realized P&L} < 0'
                 },
-                'backgroundColor': '#F08080', # LightCoral for loss
+                'backgroundColor': '#F08080',
                 'color': 'black'
             },
             {
                 'if': {
                     'filter_query': '{Realized P&L} > 0'
                 },
-                'backgroundColor': '#90EE90', # LightGreen for profit
+                'backgroundColor': '#90EE90',
                 'color': 'black'
             },
             {
                 'if': {
                     'filter_query': '{Realized P&L} = 0'
                 },
-                'backgroundColor': '#FFD700', # Gold for break-even
+                'backgroundColor': '#FFD700',
                 'color': 'black'
             }
         ],
-        style_cell={ # Default style for all cells
+        style_cell={
             'textAlign': 'left',
             'padding': '5px',
             'fontFamily': 'sans-serif',
             'minWidth': 80, 'width': 80, 'maxWidth': 180
         },
-        style_cell_conditional=[ # Specific widths for certain columns
+        style_cell_conditional=[
             {'if': {'column_id': 'Trade #'}, 'minWidth': 80, 'width': 80},
             {'if': {'column_id': 'Futures Type'}, 'minWidth': 120, 'width': 120},
             {'if': {'column_id': 'Size'}, 'minWidth': 80, 'width': 80},
@@ -147,180 +165,201 @@ app.layout = html.Div([
             {'if': {'column_id': 'Execution'}, 'minWidth': 150, 'width': 150},
             {'if': {'column_id': 'Sizing'}, 'minWidth': 100, 'width': 100},
         ],
-        style_header={ # Style for header cells
+        style_header={
             'backgroundColor': 'rgb(230, 230, 230)',
             'fontWeight': 'bold',
             'textAlign': 'center'
         },
-        css=[{ # General CSS adjustments
+        css=[{
             'selector': '.dash-spreadsheet-container .dash-spreadsheet-table',
             'rule': 'font-size: 14px;'
         },
-        { # Target the text label within the dropdown for padding adjustment
+        {
             'selector': '.dash-cell div.dash-dropdown .Select-value-label',
             'rule': 'padding-right: 25px !important;'
         },
-        { # Target the dropdown arrow itself to adjust its position
+        {
             'selector': '.dash-cell div.dash-dropdown .Select-arrow',
             'rule': 'right: 5px !important;'
         }
         ]
     ),
-    html.Div(id='debug-output', style={'margin-top': '20px', 'color': 'red'})
+    html.Div(id='debug-output', style={'marginTop': '20px', 'color': 'red'}),
+
+    # Hidden dcc.Store to keep track of the current pressing index
+    dcc.Store(id='current-pressing-index', data=0),
+
+    # Removed the html.Style block for the CSS hover effect as it's no longer needed
 ])
 
+# COMBINED CALLBACK: Handles both Add Trade button and table data updates
 @app.callback(
     Output('trades-table', 'data'),
+    Output('current-pressing-index', 'data'),
     Input('add-trade-button', 'n_clicks'),
-    State('trades-table', 'data')
-)
-def add_row(n_clicks, rows):
-    """
-    Adds a new row to the table with default and calculated values
-    when the 'Add Trade' button is clicked.
-    """
-    if n_clicks > 0:
-        if rows is None:
-            rows = []
-
-        trade_num = len(rows) + 1
-
-        default_futures_type = config['default_futures_type']
-        default_size = config['default_size']
-        
-        # Ensure 'mf' exists for the default futures type and default_size is valid
-        if default_futures_type in config['futures_types'] and default_size is not None and default_size > 0:
-            mf = config['futures_types'][default_futures_type]['mf']
-            stop_loss_pts = config['daily_risk'] / (default_size * mf)
-            risk_dollars = stop_loss_pts * default_size * mf
-        else:
-            stop_loss_pts = None
-            risk_dollars = None
-            print("Warning: Could not calculate default Stop Loss/Risk. Check config or default values.")
-
-        new_row = {
-            "Trade #": trade_num,
-            "Futures Type": default_futures_type,
-            "Size": default_size,
-            "Stop Loss (pts)": round(stop_loss_pts, 2) if stop_loss_pts is not None else "",
-            "Risk ($)": round(risk_dollars, 2) if risk_dollars is not None else "",
-            "Status": "Active", # New trades start as Active
-            "Points Realized": "",
-            "Realized P&L": "",
-            "Entry Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Exit Time": "",
-            "Trade came to me": "Yes",
-            "With Value": "Yes",
-            "Score": "A+",
-            "Execution": "Calm Execution",
-            "Sizing": "Base"
-        }
-        rows.append(new_row)
-    return rows
-
-@app.callback(
-    Output('trades-table', 'data', allow_duplicate=True),
     Input('trades-table', 'data'),
     State('trades-table', 'data_previous'),
+    State('current-pressing-index', 'data'),
     prevent_initial_call=True
 )
-def update_calculated_columns(current_data, previous_data):
-    """
-    Recalculates 'Risk ($)' and 'Realized P&L' when relevant inputs change,
-    and fills 'Exit Time', sets 'Status', and applies row colors based on trade status and P&L.
-    """
-    if current_data is None or previous_data is None:
-        return dash.no_update
+def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, current_pressing_index):
+    ctx = callback_context
 
-    # If data hasn't changed, do nothing
-    if current_data == previous_data:
-        return dash.no_update
+    if not ctx.triggered:
+        raise dash.exceptions.PreventUpdate
 
-    updated_rows = []
-    for i, row in enumerate(current_data):
-        is_existing_row = i < len(previous_data) # Check if row existed previously and is not new
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-        # Get current and previous values for comparison
-        status_current = row.get("Status")
-        status_previous = previous_data[i].get("Status") if is_existing_row else None
-        
-        points_realized_current = row.get("Points Realized")
-        points_realized_previous = previous_data[i].get("Points Realized") if is_existing_row else None
+    updated_rows = current_table_data
+    new_pressing_index = current_pressing_index
 
-        # Helper to safely convert to float or None for comparison
-        def safe_float(val):
-            try:
-                return float(val) if val not in [None, ''] else None
-            except ValueError:
-                return None # Handles cases where non-numeric text might be entered
+    def safe_float(val):
+        try:
+            return float(val) if val not in [None, ''] else None
+        except ValueError:
+            return None
 
-        points_realized_current_num = safe_float(points_realized_current)
-        points_realized_previous_num = safe_float(points_realized_previous)
-
-
-        # --- Logic for Points Realized entry/deletion ---
-        # Scenario 1: Points Realized is entered (was blank/None, now has a value)
-        if points_realized_current_num is not None and points_realized_previous_num is None:
-            row["Status"] = "Closed"
-            if not row.get("Exit Time"): # Only fill if not already filled
-                row["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        # Scenario 2: Points Realized is deleted (was a value, now blank/None)
-        elif points_realized_current_num is None and points_realized_previous_num is not None:
-            row["Status"] = "Active"
-            row["Realized P&L"] = "" # Blank out Realized P&L
-            row["Exit Time"] = ""    # Blank out Exit Time
-            # Row color will reset automatically due to P&L being blank
-
-        # --- Recalculate Risk ($) and Realized P&L based on relevant changes ---
-        should_recalculate_pnl = False
-        # Trigger recalculation if any core input changes, including Status
-        # The points_realized change is now handled above for status/exit time,
-        # but it still needs to trigger P&L recalculation.
-        if (points_realized_current != points_realized_previous or
-            status_current != status_previous or # Manual status change
-            row.get("Futures Type") != (previous_data[i].get("Futures Type") if is_existing_row else None) or
-            row.get("Size") != (previous_data[i].get("Size") if is_existing_row else None) or
-            row.get("Stop Loss (pts)") != (previous_data[i].get("Stop Loss (pts)") if is_existing_row else None)):
-            should_recalculate_pnl = True
-        
-        # Also recalculate if it's a brand new row just added
-        elif i == len(current_data) - 1 and len(current_data) > len(previous_data):
-            should_recalculate_pnl = True
-
-        if should_recalculate_pnl:
-            futures_type = row.get("Futures Type")
-            size = row.get("Size")
-            stop_loss_pts = row.get("Stop Loss (pts)")
-            current_points_realized_for_calc = row.get("Points Realized") # Use potentially updated value for P&L calc
-
-            # --- Recalculate Risk ($) ---
-            if (futures_type in config['futures_types'] and
-                isinstance(size, (int, float)) and size is not None and size > 0 and
-                isinstance(stop_loss_pts, (int, float)) and stop_loss_pts is not None):
-                mf = config['futures_types'][futures_type]['mf']
-                calculated_risk_dollars = size * stop_loss_pts * mf
-                row["Risk ($)"] = round(calculated_risk_dollars, 2)
+    # --- Logic for Add Trade Button ---
+    if trigger_id == 'add-trade-button':
+        if n_clicks > 0:
+            rows_to_modify = list(current_table_data) if current_table_data is not None else []
+            trade_num = len(rows_to_modify) + 1
+            default_futures_type = config['default_futures_type']
+            default_size = config['default_size']
+            
+            if default_futures_type in config['futures_types'] and default_size is not None and default_size > 0:
+                mf = config['futures_types'][default_futures_type]['mf']
+                stop_loss_pts = config['daily_risk'] / (default_size * mf)
+                risk_dollars = stop_loss_pts * default_size * mf
             else:
-                row["Risk ($)"] = None
+                stop_loss_pts = None
+                risk_dollars = None
+                print("Warning: Could not calculate default Stop Loss/Risk. Check config or default values.")
 
-            # --- Recalculate Realized P&L ---
-            if (current_points_realized_for_calc not in [None, ''] and
-                futures_type in config['futures_types'] and
-                isinstance(size, (int, float)) and size is not None and size > 0):
-                try:
-                    points_realized_num_for_calc = float(current_points_realized_for_calc)
-                    mf = config['futures_types'][futures_type]['mf']
-                    calculated_pnl = size * points_realized_num_for_calc * mf
-                    row["Realized P&L"] = round(calculated_pnl, 2)
-                except ValueError:
-                    row["Realized P&L"] = None # If user typed invalid text, clear P&L
-            else: # If Points Realized is blank/None, ensure Realized P&L is blank
-                row["Realized P&L"] = ""
+            new_row = {
+                "Trade #": trade_num,
+                "Futures Type": default_futures_type,
+                "Size": default_size,
+                "Stop Loss (pts)": round(stop_loss_pts, 2) if stop_loss_pts is not None else "",
+                "Risk ($)": round(risk_dollars, 2) if risk_dollars is not None else "",
+                "Status": "Active",
+                "Points Realized": "",
+                "Realized P&L": "",
+                "Entry Time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Exit Time": "",
+                "Trade came to me": "Yes",
+                "With Value": "Yes",
+                "Score": "A+",
+                "Execution": "Calm Execution",
+                "Sizing": "Base"
+            }
+            rows_to_modify.append(new_row)
+            updated_rows = rows_to_modify
+            
+            return [updated_rows, new_pressing_index]
+
+    # --- Logic for Table Data Changes ---
+    elif trigger_id == 'trades-table':
+        if previous_table_data is None:
+            raise dash.exceptions.PreventUpdate
+
+        updated_rows_from_table_logic = []
+        
+        pressing_sequence = config.get("pressing_sequence_multipliers", [1, 2, 1.5, 3])
+        max_pressing_index = len(pressing_sequence) - 1
+
+        for i, row in enumerate(current_table_data):
+            row_copy = row.copy()
+
+            is_existing_row = i < len(previous_table_data)
+
+            status_current = row_copy.get("Status")
+            status_previous = previous_table_data[i].get("Status") if is_existing_row else None
+            
+            points_realized_current = row_copy.get("Points Realized")
+            points_realized_previous = previous_table_data[i].get("Points Realized") if is_existing_row else None
+
+            points_realized_current_num = safe_float(points_realized_current)
+            points_realized_previous_num = safe_float(points_realized_previous)
+
+            if points_realized_current_num is not None and points_realized_previous_num is None:
+                row_copy["Status"] = "Closed"
+                if not row_copy.get("Exit Time"):
+                    row_copy["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            elif points_realized_current_num is None and points_realized_previous_num is not None:
+                row_copy["Status"] = "Active"
+                row_copy["Realized P&L"] = ""
+                row_copy["Exit Time"] = ""
+                pressing_action_in_this_update = 'loss'
                 
-        updated_rows.append(row)
-    
-    return updated_rows
+            should_recalculate_pnl = False
+            if (points_realized_current != points_realized_previous or
+                status_current != status_previous or
+                row_copy.get("Futures Type") != (previous_table_data[i].get("Futures Type") if is_existing_row else None) or
+                row_copy.get("Size") != (previous_table_data[i].get("Size") if is_existing_row else None) or
+                row_copy.get("Stop Loss (pts)") != (previous_table_data[i].get("Stop Loss (pts)") if is_existing_row else None)):
+                should_recalculate_pnl = True
+            
+            elif not is_existing_row and i == len(current_table_data) - 1:
+                should_recalculate_pnl = True
+
+            pnl_was_calculated_and_is_conclusive = False
+            if should_recalculate_pnl:
+                futures_type = row_copy.get("Futures Type")
+                size = row_copy.get("Size")
+                stop_loss_pts = row_copy.get("Stop Loss (pts)")
+                current_points_realized_for_calc = row_copy.get("Points Realized")
+
+                if (futures_type in config['futures_types'] and
+                    isinstance(size, (int, float)) and size is not None and size > 0 and
+                    isinstance(stop_loss_pts, (int, float)) and stop_loss_pts is not None):
+                    mf = config['futures_types'][futures_type]['mf']
+                    calculated_risk_dollars = size * stop_loss_pts * mf
+                    row_copy["Risk ($)"] = round(calculated_risk_dollars, 2)
+                else:
+                    row_copy["Risk ($)"] = None
+
+                if (current_points_realized_for_calc not in [None, ''] and
+                    futures_type in config['futures_types'] and
+                    isinstance(size, (int, float)) and size is not None and size > 0):
+                    try:
+                        points_realized_num_for_calc = float(current_points_realized_for_calc)
+                        mf = config['futures_types'][futures_type]['mf']
+                        calculated_pnl = size * points_realized_num_for_calc * mf
+                        row_copy["Realized P&L"] = round(calculated_pnl, 2)
+                        pnl_was_calculated_and_is_conclusive = True
+                    except ValueError:
+                        row_copy["Realized P&L"] = None
+                else:
+                    row_copy["Realized P&L"] = ""
+            
+            updated_rows_from_table_logic.append(row_copy)
+
+            if pnl_was_calculated_and_is_conclusive and row_copy.get("Status") == "Closed":
+                final_pnl_for_pressing_eval = safe_float(row_copy.get("Realized P&L"))
+                
+                if final_pnl_for_pressing_eval is not None:
+                    if final_pnl_for_pressing_eval > 0:
+                        pressing_action_in_this_update = 'win'
+                    elif final_pnl_for_pressing_eval <= 0:
+                        pressing_action_in_this_update = 'loss'
+        
+        updated_rows = updated_rows_from_table_logic
+
+        pressing_sequence_full = config.get("pressing_sequence_multipliers", [1, 2, 1.5, 3])
+        max_pressing_index_full = len(pressing_sequence_full) - 1
+
+        if pressing_action_in_this_update == 'win':
+            if current_pressing_index == max_pressing_index_full:
+                new_pressing_index = 0
+            else:
+                new_pressing_index = current_pressing_index + 1
+        elif pressing_action_in_this_update == 'loss':
+            new_pressing_index = 0
+            
+    return [updated_rows, new_pressing_index]
+
 
 # Callback for Available Risk Gauge
 @app.callback(
@@ -398,17 +437,17 @@ def update_pnl_progress_bar(rows):
     percent = max(min(percent, 100), 0)
 
     if total_realized_pnl < 0:
-        bar_color = "linear-gradient(to right, #ffc1c1, #ff4d4d, #cc0000)" # Red gradient
+        bar_color = "linear-gradient(to right, #ffc1c1, #ff4d4d, #cc0000)"
         text_color = "white"
         pnl_text = f"-${abs(total_realized_pnl):,.2f}"
     else:
-        bar_color = "linear-gradient(to right, #e6ffe6, #66cc66, #008000)" # Lighter green -> Darker green
+        bar_color = "linear-gradient(to right, #e6ffe6, #66cc66, #008000)"
         text_color = "white"
         pnl_text = f"+${total_realized_pnl:,.2f}"
 
     main_bar_visual_div = html.Div(
         style={
-            'background-color': '#e0e0e0',
+            'backgroundColor': '#e0e0e0',
             'borderRadius': '20px',
             'height': '30px',
             'position': 'relative',
@@ -420,10 +459,10 @@ def update_pnl_progress_bar(rows):
                 'background': bar_color,
                 'width': f'{percent}%',
                 'height': '100%',
-                'border-radius': '20px',
+                'borderRadius': '20px',
                 'display': 'flex',
-                'align-items': 'center',
-                'justify-content': 'center',
+                'alignItems': 'center',
+                'justifyContent': 'center',
                 'fontWeight': 'bold',
                 'color': text_color,
                 'fontSize': '14px',
@@ -458,6 +497,102 @@ def update_pnl_progress_bar(rows):
         main_bar_visual_div,
         target_display_div
     ]
+
+# Callback for Trades per Day Progress Bar
+@app.callback(
+    Output('trades-progress-bar-container', 'children'),
+    Input('trades-table', 'data')
+)
+def update_trades_progress_bar(rows):
+    max_trades = config.get('max_trades_per_day', 1)
+    current_trades = len(rows)
+
+    percent_used = (current_trades / max_trades) * 100 if max_trades > 0 else 0
+    percent_used = max(min(percent_used, 100), 0)
+
+    if percent_used <= 30:
+        bar_color = "linear-gradient(to right, #e6ffe6, #66cc66, #008000)"
+    elif percent_used <= 60:
+        bar_color = "linear-gradient(to right, #FFFACD, #FFD700, #DAA520)"
+    else:
+        bar_color = "linear-gradient(to right, #ffc1c1, #ff4d4d, #cc0000)"
+
+    display_text = f"{current_trades}/{max_trades}"
+
+    return html.Div(
+        style={
+            'backgroundColor': '#e0e0e0',
+            'borderRadius': '20px',
+            'height': '30px',
+            'position': 'relative',
+            'overflow': 'hidden',
+            'boxShadow': 'inset 0 1px 3px rgba(0,0,0,0.2)'
+        },
+        children=[
+            html.Div(style={
+                'background': bar_color,
+                'width': f'{percent_used}%',
+                'height': '100%',
+                'borderRadius': '20px',
+                'display': 'flex',
+                'alignItems': 'center',
+                'justifyContent': 'center',
+                'fontWeight': 'bold',
+                'color': 'white',
+                'fontSize': '14px',
+                'transition': 'width 0.5s ease-in-out'
+            }, children=[
+                display_text
+            ])
+        ]
+    )
+
+# Callback for Pressing Roadmap visual
+@app.callback(
+    Output('pressing-roadmap-container', 'children'),
+    Input('current-pressing-index', 'data')
+)
+def update_pressing_roadmap_visual(current_pressing_index):
+    pressing_sequence_multipliers = config.get("pressing_sequence_multipliers", [1, 2, 1.5, 3])
+    default_size = config.get("default_size", 1)
+
+    roadmap_elements = []
+    
+    roadmap_elements.append(html.Span("🚀 ", style={'fontSize': '20px', 'marginRight': '5px'}))
+
+    for idx, multiplier in enumerate(pressing_sequence_multipliers):
+        display_size_val = multiplier * default_size
+        display_text = str(int(display_size_val)) if display_size_val == int(display_size_val) else str(display_size_val)
+        
+        color = "#fdd835" if idx == current_pressing_index else "#90caf9"
+        text_color = "#000000" if idx == current_pressing_index else "#ffffff"
+
+        box_style = {
+            'backgroundColor': color,
+            'color': text_color,
+            'borderRadius': '4px',
+            'padding': '8px 12px',
+            'fontWeight': 'bold',
+            'marginRight': '6px',
+            'minWidth': '36px',
+            'textAlign': 'center',
+            'boxShadow': '0 2px 4px rgba(0,0,0,0.2)',
+            'transition': 'all 0.3s ease-in-out',
+            'border': '1px solid ' + ('#DAA520' if idx == current_pressing_index else '#42a5f5')
+        }
+        
+        roadmap_elements.append(
+            html.Div(display_text, style=box_style)
+        )
+
+        if idx < len(pressing_sequence_multipliers) - 1:
+            roadmap_elements.append(
+                html.Div(style={'borderTop': '3px solid #42a5f5', 'width': '30px', 'marginRight': '6px'})
+            )
+    
+    roadmap_elements.append(html.Span(" ➡️", style={'fontSize': '20px', 'marginLeft': '5px'}))
+
+    return roadmap_elements
 
 
 if __name__ == '__main__':
