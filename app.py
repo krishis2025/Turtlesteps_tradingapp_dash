@@ -364,13 +364,11 @@ app.layout = html.Div([
                             ], style={'padding': '20px'})
                         ]),
                         dcc.Tab(label='KPIs', value='tab-kpis', children=[
-                            html.Div([
-                                html.P("KPIs will be displayed here.", style={'textAlign': 'center', 'marginTop': '50px', 'fontSize': '18px'})
-                            ], style={'padding': '20px'})
+                            html.Div(id='kpis-content', style={'padding': '20px'})
                         ]),
                         dcc.Tab(label='P&L Breakdown by Category', value='tab-pnl-breakdown', children=[
                             html.Div([
-                                html.P("P&L Breakdown charts will be displayed here.", style={'textAlign': 'center', 'marginTop': '50px', 'fontSize': '18px'})
+                                html.Div(id='breakdown-content', style={'padding': '20px'})
                             ], style={'padding': '20px'})
                         ]),
                     ])
@@ -486,6 +484,116 @@ def update_cumulative_pnl_chart(rows):
 
     return fig
 
+# NEW CALLBACK: For KPIs (Key Performance Indicators)
+@app.callback(
+    Output('kpis-content', 'children'),
+    Input('trades-table', 'data')
+)
+def update_kpis(rows):
+    if not rows:
+        return html.Div("No trade data to display KPIs.", style={'textAlign': 'center', 'padding': '20px'})
+
+    df = pd.DataFrame(rows)
+    # Ensure Realized P&L is numeric, coercing errors and filling NaNs with 0
+    df['Realized P&L'] = pd.to_numeric(df['Realized P&L'], errors='coerce').fillna(0)
+
+    # Calculate KPIs
+    total_trades = len(df)
+    total_realized_pnl = df['Realized P&L'].sum()
+    
+    winning_trades = df[df['Realized P&L'] > 0]
+    losing_trades = df[df['Realized P&L'] <= 0] # Includes break-even as non-winning
+
+    num_wins = len(winning_trades)
+    num_losses = len(losing_trades)
+
+    win_rate = (num_wins / total_trades * 100) if total_trades > 0 else 0
+    avg_pnl_per_trade = (total_realized_pnl / total_trades) if total_trades > 0 else 0
+    
+    avg_win_size = (winning_trades['Realized P&L'].mean()) if num_wins > 0 else 0
+    avg_loss_size = (losing_trades['Realized P&L'].mean()) if num_losses > 0 else 0
+
+    return html.Div([
+        html.P(f"Total Trades: {total_trades}", style={'fontSize': '18px', 'fontWeight': 'bold'}),
+        html.P(f"Total Realized P&L: ${total_realized_pnl:,.2f}", style={'fontSize': '18px', 'fontWeight': 'bold'}),
+        html.P(f"Win Rate: {win_rate:,.2f}%", style={'fontSize': '18px', 'fontWeight': 'bold'}),
+        html.P(f"Avg P&L per Trade: ${avg_pnl_per_trade:,.2f}", style={'fontSize': '18px', 'fontWeight': 'bold'}),
+        html.P(f"Avg Winning Trade: ${avg_win_size:,.2f}", style={'fontSize': '18px'}),
+        html.P(f"Avg Losing Trade: ${abs(avg_loss_size):,.2f}", style={'fontSize': '18px'}), # Display as positive for "avg loss size"
+    ], style={'textAlign': 'center', 'padding': '20px'})
+
+
+# NEW CALLBACK: P&L Breakdown by Category
+# NEW CALLBACK: P&L Breakdown by Category
+@app.callback(
+    Output('breakdown-content', 'children'),
+    Input('trades-table', 'data')
+)
+def update_pnl_breakdown_charts(rows):
+    if not rows:
+        return html.Div("No trade data to display P&L breakdowns.", style={'textAlign': 'center', 'padding': '20px'})
+
+    df = pd.DataFrame(rows)
+    # Ensure 'Realized P&L' is numeric, coercing errors and filling NaNs with 0
+    df['Realized P&L'] = pd.to_numeric(df['Realized P&L'], errors='coerce').fillna(0)
+
+    charts = []
+    categories = ['Entry Quality', 'Emotional State', 'Score']
+
+    for category in categories:
+        # Check if the column exists, and if it has any non-blank/non-null data
+        if category not in df.columns or df[category].isnull().all() or (df[category] == '').all():
+            charts.append(html.Div(f"No valid data for '{category}' breakdown.", style={'textAlign': 'center', 'padding': '10px'}))
+            continue
+
+        # Filter out rows where the category is blank or NaN before grouping
+        df_filtered = df[df[category] != ''].dropna(subset=[category])
+        
+        if df_filtered.empty:
+            charts.append(html.Div(f"No non-blank data for '{category}' breakdown.", style={'textAlign': 'center', 'padding': '10px'}))
+            continue
+
+        pnl_by_category = df_filtered.groupby(category)['Realized P&L'].sum().reset_index()
+        pnl_by_category = pnl_by_category.sort_values(by='Realized P&L', ascending=False)
+
+        # Determine bar colors (red for negative, green for positive, orange for zero)
+        bar_colors = []
+        for pnl in pnl_by_category['Realized P&L']:
+            if pnl < 0:
+                bar_colors.append('red')
+            elif pnl > 0:
+                bar_colors.append('green')
+            else:
+                bar_colors.append('orange') # Use orange for break-even
+
+        fig = go.Figure(go.Bar(
+            x=pnl_by_category[category],
+            y=abs(pnl_by_category['Realized P&L']), # Use absolute value for y-axis to always extend upwards
+            marker_color=bar_colors,
+            # Display actual (signed) P&L in text and hover
+            text=pnl_by_category['Realized P&L'].apply(lambda x: f'${x:,.2f}'), # Formatted P&L text
+            textposition='outside', # Text above the bars
+            hovertemplate='<b>%{x}</b><br>Total P&L: $%{customdata:,.2f}<extra></extra>', # Use customdata for hover
+            customdata=pnl_by_category['Realized P&L'] # Pass original P&L for hover
+        ))
+
+        fig.update_layout(
+            title=f'Realized P&L by {category}',
+            xaxis_title=category,
+            yaxis_title='Total Realized P&L ($)',
+            yaxis_range=[0, max(pnl_by_category['Realized P&L'].abs().max() * 1.1, 100)], # Ensure y-axis starts at 0 and goes above max absolute PnL
+            margin=dict(l=40, r=40, t=40, b=40),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            font={'color': 'black'},
+            bargap=0.2 # Add some gap between bars
+        )
+        charts.append(dcc.Graph(figure=fig, style={'marginBottom': '30px'})) # Add spacing between charts
+
+    if not charts: # If no charts were added due to no data in any category
+        return html.Div("No valid trade data to display P&L breakdowns by category.", style={'textAlign': 'center', 'padding': '20px'})
+
+    return html.Div(charts)
 
 # COMBINED CALLBACK: Handles all table and pressing index updates
 @app.callback(
