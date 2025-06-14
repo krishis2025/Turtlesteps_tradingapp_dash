@@ -5,6 +5,7 @@ import json
 from datetime import datetime
 import pandas as pd
 import plotly.graph_objects as go
+import io # For dcc.send_data_frame
 
 # Load config
 CONFIG_FILE = 'config.json'
@@ -15,7 +16,7 @@ except FileNotFoundError:
     print(f"Error: {CONFIG_FILE} not found. Please create it with the specified structure.")
     exit()
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__) # Dash automatically looks for a subfolder named 'assets'
 
 # Initial empty data for the table
 initial_data = []
@@ -23,352 +24,363 @@ initial_data = []
 app.layout = html.Div([
     html.H2("Trading Dashboard", style={'textAlign': 'center', 'marginBottom': '20px'}),
 
-    # Main container for the two-column indicator section
-    html.Div([
-        # Column 1: Available Risk Gauge
-        html.Div([
-            html.H3("Available Risk", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
-            dcc.Graph(id='available-risk-gauge', config={'displayModeBar': False},
-                      style={'height': '180px'})
-        ], style={'flex': '1', 'minWidth': '300px', 'paddingRight': '10px'}),
+    # Main dcc.Tabs for Home and Analytical Views
+    dcc.Tabs(id="main-tabs", value="tab-home", children=[
+        # Tab 1: Home
+        dcc.Tab(label="Home", value="tab-home", children=[
+            # --- Content for the Home Tab - Wrapped in a single Div with minHeight ---
+            html.Div(id="home-tab-content-wrapper", style={'padding': '20px', 'minHeight': '800px'}, children=[
+                # Main container for the two-column indicator section
+                html.Div([
+                    # Column 1: Available Risk Gauge
+                    html.Div([
+                        html.H3("Available Risk", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                        dcc.Graph(id='available-risk-gauge', config={'displayModeBar': False},
+                                  style={'height': '180px'})
+                    ], style={'flex': '1', 'minWidth': '300px', 'paddingRight': '10px'}),
 
-        # Column 2: Stacked Progress Bars and Placeholder
-        html.Div([
-            # Row 1: Realized P&L Progress Bar
-            html.Div([
-                html.H3("Realized P&L Progress", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
-                html.Div(id='pnl-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
-            ], style={'marginBottom': '15px'}),
+                    # Column 2: Stacked Progress Bars and Placeholder
+                    html.Div([
+                        # Row 1: Realized P&L Progress Bar
+                        html.Div([
+                            html.H3("Realized P&L Progress", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                            html.Div(id='pnl-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
+                        ], style={'marginBottom': '15px'}),
 
-            # Row 2: Trades per Day Progress Bar
-            html.Div([
-                html.H3("Trades per Day", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
-                html.Div(id='trades-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
-            ], style={'marginBottom': '30px'}),
+                        # Row 2: Trades per Day Progress Bar
+                        html.Div([
+                            html.H3("Trades per Day", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                            html.Div(id='trades-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
+                        ], style={'marginBottom': '30px'}),
 
-            # Row 3: Pressing Roadmap
-            html.Div([
-                html.Div(
-                    id="pressing-roadmap-hover-target",
-                    style={
-                        'width': '100%',
-                        'minHeight': '20px',
-                        'textAlign': 'center',
-                        'marginTop': '0',
-                        'marginBottom': '5px',
-                        'cursor': 'help',
-                        'position': 'relative'
-                    },
-                    children=[
-                        html.P(
-                            "This roadmap shows your current pressing level based on consecutive wins. Win: advance. Loss/Break-even: reset to 1x.",
-                            className="roadmap-explanation-text",
-                            style={
-                                'fontSize': '12px',
-                                'textAlign': 'center',
-                                'margin': '0',
-                                'backgroundColor': 'rgba(0, 0, 0, 0.8)',
-                                'color': 'white',
-                                'padding': '5px 10px',
-                                'borderRadius': '5px',
-                                'whiteSpace': 'nowrap',
-                                'position': 'absolute',
-                                'bottom': '100%',
-                                'left': '50%',
-                                'transform': 'translateX(-50%)',
-                                'zIndex': '10',
-                                'opacity': '0',
-                                'visibility': 'hidden',
-                                'transition': 'opacity 0.3s ease-in-out, visibility 0.3s ease-in-out'
+                        # Row 3: Pressing Roadmap
+                        html.Div([
+                            html.Div(
+                                id="pressing-roadmap-hover-target",
+                                style={
+                                    'width': '100%',
+                                    'minHeight': '20px',
+                                    'textAlign': 'center',
+                                    'marginTop': '0',
+                                    'marginBottom': '5px',
+                                    'cursor': 'help',
+                                    'position': 'relative'
+                                },
+                                children=[
+                                    html.P(
+                                        "This roadmap shows your current pressing level based on consecutive wins. Win: advance. Loss/Break-even: reset to 1x.",
+                                        className="roadmap-explanation-text",
+                                        style={
+                                            'fontSize': '12px',
+                                            'textAlign': 'center',
+                                            'margin': '0',
+                                            'backgroundColor': 'rgba(0, 0, 0, 0.8)',
+                                            'color': 'white',
+                                            'padding': '5px 10px',
+                                            'borderRadius': '5px',
+                                            'whiteSpace': 'nowrap',
+                                            'position': 'absolute',
+                                            'bottom': '100%',
+                                            'left': '50%',
+                                            'transform': 'translateX(-50%)',
+                                            'zIndex': '10',
+                                            'opacity': '0',
+                                            'visibility': 'hidden',
+                                            'transition': 'opacity 0.3s ease-in-out, visibility 0.3s ease-in-out'
+                                        }
+                                    )
+                                ]
+                            ),
+                            html.Div(id='pressing-roadmap-container', style={'width': '100%', 'height': 'auto', 'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap', 'padding': '10px 0'}),
+                        ], style={'marginBottom': '0px'})
+
+                    ], style={'flex': '1', 'minWidth': '300px', 'paddingLeft': '10px', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'})
+                ], style={'display': 'flex', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'marginBottom': '20px'}),
+
+                # Export to Excel Button
+                html.Div([
+                    html.Button("Export to Excel", id="export-excel-button", n_clicks=0,
+                                style={'marginBottom': '10px', 'padding': '8px 15px', 'fontSize': '14px', 'cursor': 'pointer'})
+                ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}),
+
+                # DataTable
+                html.Div([
+                    dash_table.DataTable(
+                        id='trades-table',
+                        columns=[
+                            {"name": "Trade #", "id": "Trade #", "type": "numeric", "editable": False},
+                            {"name": "Futures Type", "id": "Futures Type", "presentation": "dropdown"},
+                            {"name": "Size", "id": "Size", "type": "numeric", "editable": True},
+                            {"name": "Stop Loss (pts)", "id": "Stop Loss (pts)", "type": "numeric", "editable": True},
+                            {"name": "Risk ($)", "id": "Risk ($)", "type": "numeric", "editable": False}, # CORRECTED LINE HERE
+                            {"name": "Status", "id": "Status", "presentation": "dropdown"},
+                            {"name": "Points Realized", "id": "Points Realized", "type": "numeric", "editable": True},
+                            {"name": "Realized P&L", "id": "Realized P&L", "type": "numeric", "editable": False, "format": {"specifier": ".2f"}},
+                            {"name": "Entry Time", "id": "Entry Time", "editable": False},
+                            {"name": "Exit Time", "id": "Exit Time", "editable": True},
+                            {"name": "Trade came to me", "id": "Trade came to me", "presentation": "dropdown"},
+                            {"name": "With Value", "id": "With Value", "presentation": "dropdown"},
+                            {"name": "Score", "id": "Score", "presentation": "dropdown"},
+                            {"name": "Entry Quality", "id": "Entry Quality", "presentation": "dropdown"},
+                            {"name": "Emotional State", "id": "Emotional State", "presentation": "dropdown"},
+                            {"name": "Sizing", "id": "Sizing", "presentation": "dropdown"},
+                            {"name": "Notes", "id": "Notes", "type": "text", "editable": True},
+                        ],
+                        data=initial_data,
+                        editable=True,
+                        row_deletable=True,
+                        dropdown={
+                            'Futures Type': {
+                                'options': [{'label': i, 'value': i} for i in config['futures_types'].keys()],
+                                'clearable': False
+                            },
+                            'Status': {
+                                'options': [{'label': i, 'value': i} for i in ['Active', 'Closed']],
+                                'clearable': False
+                            },
+                            'Trade came to me': {
+                                'options': [{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
+                                'clearable': False
+                            },
+                            'With Value': {
+                                'options': [{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
+                                'clearable': False
+                            },
+                            'Score': {
+                                'options': [
+                                    {'label': ' ', 'value': ''},
+                                    {'label': 'A+', 'value': 'A+'},
+                                    {'label': 'B', 'value': 'B'},
+                                    {'label': 'C', 'value': 'C'},
+                                ],
+                                'clearable': False
+                            },
+                            'Entry Quality': {
+                                'options': [
+                                    {'label': ' ', 'value': ''},
+                                    {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
+                                    {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
+                                    {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
+                                    {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
+                                    {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
+                                ],
+                                'clearable': False
+                            },
+                            'Emotional State': {
+                                'options': [
+                                    {'label': ' ', 'value': ''},
+                                    {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
+                                    {'label': 'Get back losses', 'value': 'Get back losses'},
+                                    {'label': 'FOMO', 'value': 'FOMO'},
+                                    {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
+                                    {'label': 'Overconfidence', 'value': 'Overconfidence'},
+                                    {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
+                                    {'label': 'Distracted', 'value': 'Distracted'},
+                                ],
+                                'clearable': False
+                            },
+                            'Sizing': {
+                                'options': [{'label': i, 'value': i} for i in ['Base', 'Increased', 'Reduced']],
+                                'clearable': False
+                            },
+                        },
+                        style_data_conditional=[
+                            {
+                                'if': {
+                                    'filter_query': '{Risk ($)} > ' + str(config['daily_risk'])
+                                },
+                                'backgroundColor': '#FF4136',
+                                'color': 'white'
+                            },
+                            {
+                                'if': {
+                                    'filter_query': '{Realized P&L} < 0'
+                                },
+                                'backgroundColor': '#F08080', # LightCoral for loss
+                                'color': 'black'
+                            },
+                            {
+                                'if': {
+                                    'filter_query': '{Realized P&L} > 0'
+                                },
+                                'backgroundColor': '#90EE90', # LightGreen for profit
+                                'color': 'black'
+                            },
+                            {
+                                'if': {
+                                    'filter_query': '{Realized P&L} = 0'
+                                },
+                                'backgroundColor': '#FFD700', # Gold for break-even
+                                'color': 'black'
                             }
-                        )
-                    ]
-                ),
-                html.Div(id='pressing-roadmap-container', style={'width': '100%', 'height': 'auto', 'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap', 'padding': '10px 0'}),
-            ], style={'marginBottom': '0px'})
-
-        ], style={'flex': '1', 'minWidth': '300px', 'paddingLeft': '10px', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'})
-    ], style={'display': 'flex', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'marginBottom': '20px'}),
-
-    # NEW: Export to Excel Button (Positioned correctly and left-aligned)
-    html.Div([
-        html.Button("Export to Excel", id="export-excel-button", n_clicks=0,
-                    style={'marginBottom': '10px', 'padding': '8px 15px', 'fontSize': '14px', 'cursor': 'pointer'})
-    ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}), # CHANGED: textAlign to 'left'
-
-    # DataTable (explicitly wrapped and with spacing)
-    html.Div([
-        dash_table.DataTable(
-            id='trades-table',
-            columns=[
-                {"name": "Trade #", "id": "Trade #", "type": "numeric", "editable": False},
-                {"name": "Futures Type", "id": "Futures Type", "presentation": "dropdown"},
-                {"name": "Size", "id": "Size", "type": "numeric", "editable": True},
-                {"name": "Stop Loss (pts)", "id": "Stop Loss (pts)", "type": "numeric", "editable": True},
-                {"name": "Risk ($)", "id": "Risk ($)", "type": "numeric", "editable": False},
-                {"name": "Status", "id": "Status", "presentation": "dropdown"},
-                {"name": "Points Realized", "id": "Points Realized", "type": "numeric", "editable": True},
-                {"name": "Realized P&L", "id": "Realized P&L", "type": "numeric", "editable": False},
-                {"name": "Entry Time", "id": "Entry Time", "editable": False},
-                {"name": "Exit Time", "id": "Exit Time", "editable": True},
-                {"name": "Trade came to me", "id": "Trade came to me", "presentation": "dropdown"},
-                {"name": "With Value", "id": "With Value", "presentation": "dropdown"},
-                {"name": "Score", "id": "Score", "presentation": "dropdown"},
-                {"name": "Entry Quality", "id": "Entry Quality", "presentation": "dropdown"},
-                {"name": "Emotional State", "id": "Emotional State", "presentation": "dropdown"},
-                {"name": "Sizing", "id": "Sizing", "presentation": "dropdown"},
-                {"name": "Notes", "id": "Notes", "type": "text", "editable": True},
-            ],
-            data=initial_data,
-            editable=True,
-            row_deletable=True,
-            dropdown={
-                'Futures Type': {
-                    'options': [{'label': i, 'value': i} for i in config['futures_types'].keys()],
-                    'clearable': False
-                },
-                'Status': {
-                    'options': [{'label': i, 'value': i} for i in ['Active', 'Closed']],
-                    'clearable': False
-                },
-                'Trade came to me': {
-                    'options': [{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
-                    'clearable': False
-                },
-                'With Value': {
-                    'options': [{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
-                    'clearable': False
-                },
-                'Score': {
-                    'options': [
-                        {'label': ' ', 'value': ''},
-                        {'label': 'A+', 'value': 'A+'},
-                        {'label': 'B', 'value': 'B'},
-                        {'label': 'C', 'value': 'C'},
-                    ],
-                    'clearable': False
-                },
-                'Entry Quality': {
-                    'options': [
-                        {'label': ' ', 'value': ''},
-                        {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
-                        {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
-                        {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
-                        {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
-                        {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
-                    ],
-                    'clearable': False
-                },
-                'Emotional State': {
-                    'options': [
-                        {'label': ' ', 'value': ''},
-                        {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
-                        {'label': 'Get back losses', 'value': 'Get back losses'},
-                        {'label': 'FOMO', 'value': 'FOMO'},
-                        {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
-                        {'label': 'Overconfidence', 'value': 'Overconfidence'},
-                        {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
-                        {'label': 'Distracted', 'value': 'Distracted'},
-                    ],
-                    'clearable': False
-                },
-                'Sizing': {
-                    'options': [{'label': i, 'value': i} for i in ['Base', 'Increased', 'Reduced']],
-                    'clearable': False
-                },
-            },
-            style_data_conditional=[
-                {
-                    'if': {
-                        'filter_query': '{Risk ($)} > ' + str(config['daily_risk'])
-                    },
-                    'backgroundColor': '#FF4136',
-                    'color': 'white'
-                },
-                # Conditional row coloring based on Realized P&L
-                {
-                    'if': {
-                        'filter_query': '{Realized P&L} < 0'
-                    },
-                    'backgroundColor': '#F08080', # LightCoral for loss
-                    'color': 'black'
-                },
-                {
-                    'if': {
-                        'filter_query': '{Realized P&L} > 0'
-                    },
-                    'backgroundColor': '#90EE90', # LightGreen for profit
-                    'color': 'black'
-                },
-                {
-                    'if': {
-                        'filter_query': '{Realized P&L} = 0'
-                    },
-                    'backgroundColor': '#FFD700', # Gold for break-even
-                    'color': 'black'
-                }
-            ],
-            style_cell={
-                'textAlign': 'left',
-                'padding': '5px',
-                'fontFamily': 'sans-serif',
-                'minWidth': 80, 'width': 80, 'maxWidth': 180
-            },
-            style_cell_conditional=[
-                {'if': {'column_id': 'Trade #'}, 'minWidth': 80, 'width': 80},
-                {'if': {'column_id': 'Futures Type'}, 'minWidth': 120, 'width': 120},
-                {'if': {'column_id': 'Size'}, 'minWidth': 80, 'width': 80},
-                {'if': {'column_id': 'Stop Loss (pts)'}, 'minWidth': 130, 'width': 130},
-                {'if': {'column_id': 'Risk ($)'}, 'minWidth': 100, 'width': 100},
-                {'if': {'column_id': 'Status'}, 'minWidth': 100, 'width': 100},
-                {'if': {'column_id': 'Points Realized'}, 'minWidth': 130, 'width': 130},
-                {'if': {'column_id': 'Realized P&L'}, 'minWidth': 130, 'width': 130},
-                {'if': {'column_id': 'Entry Time'}, 'minWidth': 180, 'width': 180},
-                {'if': {'column_id': 'Exit Time'}, 'minWidth': 180, 'width': 180},
-                {'if': {'column_id': 'Trade came to me'}, 'minWidth': 150, 'width': 150},
-                {'if': {'column_id': 'With Value'}, 'minWidth': 120, 'width': 120},
-                {'if': {'column_id': 'Score'}, 'minWidth': 80, 'width': 80},
-                {'if': {'column_id': 'Entry Quality'}, 'minWidth': 150, 'width': 150},
-                {'if': {'column_id': 'Emotional State'}, 'minWidth': 180, 'width': 180},
-                {'if': {'column_id': 'Sizing'}, 'minWidth': 100, 'width': 100},
-                {'if': {'column_id': 'Notes'}, 'minWidth': 250, 'width': 250, 'maxWidth': 400},
-            ],
-            style_header={
-                'backgroundColor': 'rgb(230, 230, 230)',
-                'fontWeight': 'bold',
-                'textAlign': 'center'
-            },
-            css=[{
-                'selector': '.dash-spreadsheet-container .dash-spreadsheet-table',
-                'rule': 'font-size: 14px;'
-            },
-            {
-                'selector': '.dash-cell div.dash-dropdown .Select-value-label',
-                'rule': 'padding-right: 25px !important;'
-            },
-            {
-                'selector': '.dash-cell div.dash-dropdown .Select-arrow',
-                'rule': 'right: 5px !important;'
-            }
-            ]
-        )
-    ], style={'marginTop': '20px', 'marginBottom': '20px', 'width': '95%', 'margin': '0 auto'}),
-
-    # Section for Input Fields (below table)
-    html.Div([
-        html.H3("New Trade Entry", style={'textAlign': 'center', 'marginTop': '20px', 'marginBottom': '15px'}),
-
-        # Main container for the 3 columns
-        html.Div([
-            # Column 1
-            html.Div([
-                html.Div([
-                    html.Label("Did trade come to you?", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
-                    dcc.Dropdown(
-                        id='input-trade-came-to-you',
-                        options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
-                        value='',
-                        clearable=False,
-                        style={'width': '100%'}
-                    )
-                ], style={'marginBottom': '15px'}),
-
-                html.Div([
-                    html.Label("With Value?", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
-                    dcc.Dropdown(
-                        id='input-with-value',
-                        options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
-                        value='',
-                        clearable=False,
-                        style={'width': '100%'}
-                    )
-                ], style={'marginBottom': '15px'}),
-
-            ], style={'flex': '1', 'padding': '0 10px'}),
-
-            # Column 2
-            html.Div([
-                html.Div([
-                    html.Label("Entry Quality:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
-                    dcc.Dropdown(
-                        id='input-entry-quality',
-                        options=[
-                            {'label': ' ', 'value': ''},
-                            {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
-                            {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
-                            {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
-                            {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
-                            {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
                         ],
-                        value='',
-                        clearable=False,
-                        style={'width': '100%'}
+                        style_cell={
+                            'textAlign': 'left',
+                            'padding': '5px',
+                            'fontFamily': 'sans-serif',
+                            'minWidth': 80, 'width': 80, 'maxWidth': 180
+                        },
+                        style_header={
+                            'backgroundColor': 'rgb(230, 230, 230)',
+                            'fontWeight': 'bold',
+                            'textAlign': 'center'
+                        },
+                        css=[{
+                            'selector': '.dash-spreadsheet-container .dash-spreadsheet-table',
+                            'rule': 'font-size: 14px;'
+                        },
+                        {
+                            'selector': '.dash-cell div.dash-dropdown .Select-value-label',
+                            'rule': 'padding-right: 25px !important;'
+                        },
+                        {
+                            'selector': '.dash-cell div.dash-dropdown .Select-arrow',
+                            'rule': 'right: 5px !important;'
+                        }
+                        ]
                     )
-                ], style={'marginBottom': '15px'}),
+                ], style={'marginTop': '20px', 'marginBottom': '20px', 'width': '95%', 'margin': '0 auto'}),
 
+                # Section for Input Fields (below table)
                 html.Div([
-                    html.Label("Emotional State:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
-                    dcc.Dropdown(
-                        id='input-psychological-state',
-                        options=[
-                            {'label': ' ', 'value': ''},
-                            {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
-                            {'label': 'Get back losses', 'value': 'Get back losses'},
-                            {'label': 'FOMO', 'value': 'FOMO'},
-                            {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
-                            {'label': 'Overconfidence', 'value': 'Overconfidence'},
-                            {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
-                            {'label': 'Distracted', 'value': 'Distracted'},
-                        ],
-                        value='',
-                        clearable=False,
-                        style={'width': '100%'}
-                    )
-                ], style={'marginBottom': '15px'}),
+                    html.H3("New Trade Entry", style={'textAlign': 'center', 'marginTop': '20px', 'marginBottom': '15px'}),
 
+                    # Main container for the 3 columns
+                    html.Div([
+                        # Column 1
+                        html.Div([
+                            html.Div([
+                                html.Label("Did trade come to you?", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
+                                dcc.Dropdown(
+                                    id='input-trade-came-to-you',
+                                    options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
+                                    value='',
+                                    clearable=False,
+                                    style={'width': '100%'}
+                                )
+                            ], style={'marginBottom': '15px'}),
+
+                            html.Div([
+                                html.Label("With Value?", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
+                                dcc.Dropdown(
+                                    id='input-with-value',
+                                    options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
+                                    value='',
+                                    clearable=False,
+                                    style={'width': '100%'}
+                                )
+                            ], style={'marginBottom': '15px'}),
+
+                        ], style={'flex': '1', 'padding': '0 10px'}),
+
+                        # Column 2
+                        html.Div([
+                            html.Div([
+                                html.Label("Entry Quality:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+                                dcc.Dropdown(
+                                    id='input-entry-quality',
+                                    options=[
+                                        {'label': ' ', 'value': ''},
+                                        {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
+                                        {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
+                                        {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
+                                        {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
+                                        {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
+                                    ],
+                                    value='',
+                                    clearable=False,
+                                    style={'width': '100%'}
+                                )
+                            ], style={'marginBottom': '15px'}),
+
+                            html.Div([
+                                html.Label("Emotional State:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+                                dcc.Dropdown(
+                                    id='input-psychological-state',
+                                    options=[
+                                        {'label': ' ', 'value': ''},
+                                        {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
+                                        {'label': 'Get back losses', 'value': 'Get back losses'},
+                                        {'label': 'FOMO', 'value': 'FOMO'},
+                                        {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
+                                        {'label': 'Overconfidence', 'value': 'Overconfidence'},
+                                        {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
+                                        {'label': 'Distracted', 'value': 'Distracted'},
+                                    ],
+                                    value='',
+                                    clearable=False,
+                                    style={'width': '100%'}
+                                )
+                            ], style={'marginBottom': '15px'}),
+
+                            html.Div([
+                                html.Label("Score:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+                                dcc.Dropdown(
+                                    id='input-score',
+                                    options=[
+                                        {'label': ' ', 'value': ''},
+                                        {'label': 'A+', 'value': 'A+'},
+                                        {'label': 'B', 'value': 'B'},
+                                        {'label': 'C', 'value': 'C'},
+                                    ],
+                                    value='',
+                                    clearable=False,
+                                    style={'width': '100%'}
+                                )
+                            ], style={'marginBottom': '0px'}),
+
+                        ], style={'flex': '1', 'padding': '0 10px', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between'}),
+
+                        # Column 3 (Notes)
+                        html.Div([
+                            html.Label("Notes (max 400 chars):", style={'fontWeight': 'bold', 'marginBottom': '5px', 'display': 'block'}),
+                            dcc.Textarea(
+                                id='input-notes',
+                                placeholder='Enter notes here...',
+                                maxLength=400,
+                                value='',
+                                style={'width': '100%', 'height': '180px', 'resize': 'vertical'}
+                            )
+                        ], style={'flex': '1', 'padding': '0 10px', 'display': 'flex', 'flexDirection': 'column'}),
+
+                    ], style={'display': 'flex', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px'}),
+
+                ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px'}),
+
+                # Add Trade button (Moved below 3 columns, left justified via parent div)
                 html.Div([
-                    html.Label("Score:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
-                    dcc.Dropdown(
-                        id='input-score',
-                        options=[
-                            {'label': ' ', 'value': ''},
-                            {'label': 'A+', 'value': 'A+'},
-                            {'label': 'B', 'value': 'B'},
-                            {'label': 'C', 'value': 'C'},
-                        ],
-                        value='',
-                        clearable=False,
-                        style={'width': '100%'}
-                    )
-                ], style={'marginBottom': '0px'}),
+                    html.Button('Add Trade', id='add-trade-button', n_clicks=0, style={'marginBottom': '20px', 'padding': '12px 25px', 'fontSize': '18px', 'cursor': 'pointer'})
+                ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}),
+            ]), # End of Home Tab
 
-            ], style={'flex': '1', 'padding': '0 10px', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between'}),
-
-            # Column 3 (Notes)
-            html.Div([
-                html.Label("Notes (max 400 chars):", style={'fontWeight': 'bold', 'marginBottom': '5px', 'display': 'block'}),
-                dcc.Textarea(
-                    id='input-notes',
-                    placeholder='Enter notes here...',
-                    maxLength=400,
-                    value='',
-                    style={'width': '100%', 'height': '180px', 'resize': 'vertical'}
-                )
-            ], style={'flex': '1', 'padding': '0 10px', 'display': 'flex', 'flexDirection': 'column'}),
-
-        ], style={'display': 'flex', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px'}),
-
-    ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px'}),
-
-    # Add Trade button (Moved here, and is now the only one)
-    html.Div([
-        html.Button('Add Trade', id='add-trade-button', n_clicks=0, style={'marginBottom': '20px', 'padding': '12px 25px', 'fontSize': '18px', 'cursor': 'pointer'})
-    ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}),
+            # Tab 2: Analytical Views (contains existing dcc.Tabs for sub-views)
+            dcc.Tab(label="Analytical Views", value="tab-analytical-views", children=[
+                html.Div([
+                    html.H3("Trade Analysis", style={'textAlign': 'center', 'marginTop': '15px', 'marginBottom': '15px'}),
+                    dcc.Tabs(id="inner-analytical-tabs", value='tab-cumulative-pnl', children=[
+                        dcc.Tab(label='Cumulative P&L', value='tab-cumulative-pnl', children=[
+                            html.Div([
+                                dcc.Graph(id='cumulative-pnl-chart', style={'height': '400px'})
+                            ], style={'padding': '20px'})
+                        ]),
+                        dcc.Tab(label='KPIs', value='tab-kpis', children=[
+                            html.Div([
+                                html.P("KPIs will be displayed here.", style={'textAlign': 'center', 'marginTop': '50px', 'fontSize': '18px'})
+                            ], style={'padding': '20px'})
+                        ]),
+                        dcc.Tab(label='P&L Breakdown by Category', value='tab-pnl-breakdown', children=[
+                            html.Div([
+                                html.P("P&L Breakdown charts will be displayed here.", style={'textAlign': 'center', 'marginTop': '50px', 'fontSize': '18px'})
+                            ], style={'padding': '20px'})
+                        ]),
+                    ])
+                ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '10px', 'marginTop': '10px', 'width': '95%', 'margin': '0 auto'}),
+            ]), # End of Analytical Views Tab
+        ]) # Corrected: Added this missing closing bracket for main-tabs children list
+    ]), # Corrected: Added this missing closing parenthesis for main-tabs itself
 
     html.Div(id='debug-output', style={'marginTop': '20px', 'color': 'red'}),
     dcc.Store(id='current-pressing-index', data=0),
-
-    # Hidden dcc.Download component
     dcc.Download(id="download-dataframe-xlsx"),
 ])
 
@@ -387,6 +399,92 @@ def export_table_to_excel(n_clicks, table_data):
         
         return dcc.send_data_frame(df.to_excel, filename=filename, index=False)
     return dash.no_update
+
+
+# Callback for Cumulative P&L Line Chart
+@app.callback(
+    Output('cumulative-pnl-chart', 'figure'), # Target the 'figure' property of the dcc.Graph
+    Input('trades-table', 'data')
+)
+def update_cumulative_pnl_chart(rows):
+    if not rows:
+        # Return an empty figure or a message figure if no data
+        return go.Figure().update_layout(
+            title='Cumulative P&L - No Data',
+            xaxis_title='Trade #',
+            yaxis_title='Cumulative P&L ($)',
+            xaxis={'visible': False, 'showticklabels': False}, # Hide axes for empty plot
+            yaxis={'visible': False, 'showticklabels': False},
+            annotations=[
+                dict(text="No trade data to display cumulative P&L.", xref="paper", yref="paper", showarrow=False, font=dict(size=16))
+            ]
+        )
+
+    df = pd.DataFrame(rows)
+    # Ensure 'Realized P&L' is numeric, coercing errors and filling NaNs with 0
+    df['Realized P&L'] = pd.to_numeric(df['Realized P&L'], errors='coerce').fillna(0)
+    
+    # Ensure 'Entry Time' is datetime, coercing errors to NaT
+    df['Entry Time'] = pd.to_datetime(df['Entry Time'], errors='coerce')
+    
+    # Filter out rows where Entry Time could not be parsed or P&L is None/NaN
+    df = df.dropna(subset=['Entry Time', 'Realized P&L'])
+
+    if df.empty: # After dropping NaT, if DataFrame is empty, return empty plot
+        return go.Figure().update_layout(
+            title='Cumulative P&L - No Valid Data',
+            xaxis_title='Trade #',
+            yaxis_title='Cumulative P&L ($)',
+            xaxis={'visible': False, 'showticklabels': False},
+            yaxis={'visible': False, 'showticklabels': False},
+            annotations=[
+                dict(text="No valid trade times or P&L to display.", xref="paper", yref="paper", showarrow=False, font=dict(size=16))
+            ]
+        )
+
+    # Sort by Entry Time to ensure correct chronological cumulative sum
+    df = df.sort_values(by='Entry Time')
+    # Add a 'Trade Number' for plotting on x-axis if dates are too messy or duplicated
+    df['Trade Number'] = range(1, len(df) + 1)
+    df['Cumulative P&L'] = df['Realized P&L'].cumsum()
+
+    fig = go.Figure(
+        data=[
+            go.Scatter(
+                x=df['Trade Number'],
+                y=df['Cumulative P&L'],
+                mode='lines+markers+text', # ADDED 'text' mode here
+                name='Cumulative P&L',
+                hovertemplate='Trade #: %{x}<br>Time: %{customdata|%Y-%m-%d %H:%M:%S}<br>P&L: $%{y:.2f}<extra></extra>',
+                customdata=df['Entry Time'],
+                # NEW: Text properties to display values on points
+                text=df['Cumulative P&L'].apply(lambda x: f'${x:,.2f}'), # Format text as currency
+                textposition='top center' # Position the text above the markers
+            )
+        ]
+    )
+
+    # Set line color based on final P&L
+    final_pnl = df['Cumulative P&L'].iloc[-1]
+    if final_pnl > 0:
+        fig.update_traces(line=dict(color='green'))
+    elif final_pnl < 0:
+        fig.update_traces(line=dict(color='red'))
+    else:
+        fig.update_traces(line=dict(color='orange'))
+
+    fig.update_layout(
+        title='Cumulative Realized P&L Over Trades',
+        xaxis_title='Trade Number',
+        yaxis_title='Cumulative P&L ($)',
+        hovermode="x unified", # Shows hover info for all traces at an x-position
+        margin=dict(l=40, r=40, t=40, b=40),
+        plot_bgcolor='white', # Ensure white background for plot area
+        paper_bgcolor='white', # Ensure white background for entire paper
+        font={'color': 'black'} # Default font color for readability
+    )
+
+    return fig
 
 
 # COMBINED CALLBACK: Handles all table and pressing index updates
@@ -423,7 +521,6 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
     updated_rows = current_table_data
     new_pressing_index = current_pressing_index
 
-    # Initialize pressing_action_in_this_update at the very beginning of the function
     pressing_action_in_this_update = None 
 
     def safe_float(val):
@@ -744,7 +841,7 @@ def update_pnl_progress_bar(rows):
     Input('trades-table', 'data')
 )
 def update_trades_progress_bar(rows):
-    max_trades = config.get('max_trades_per_day', 1)
+    max_trades = config.get("max_trades_per_day", 1)
     current_trades = len(rows)
 
     percent_used = (current_trades / max_trades) * 100 if max_trades > 0 else 0
