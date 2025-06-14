@@ -368,6 +368,22 @@ app.layout = html.Div([
                         ]),
                         dcc.Tab(label='P&L Breakdown by Category', value='tab-pnl-breakdown', children=[
                             html.Div([
+                                # SNIPPET FOR THE DROPDOWN FILTER HERE
+                                html.Label("Draw PnL by Category:", style={'fontWeight': 'bold', 'marginRight': '10px', 'display': 'block', 'textAlign': 'center'}),
+                                dcc.Dropdown(
+                                    id='pnl-breakdown-category-filter',
+                                    options=[
+                                        {'label': 'Entry Quality', 'value': 'Entry Quality'},
+                                        {'label': 'Emotional State', 'value': 'Emotional State'},
+                                        {'label': 'Score', 'value': 'Score'},
+                                        {'label': 'Trade came to you', 'value': 'Trade came to me'}, # NEW OPTION
+                                        {'label': 'With Value', 'value': 'With Value'},               # NEW OPTION
+                                        {'label': 'Show All', 'value': 'Show All'}
+                                    ],
+                                    value='Show All',
+                                    clearable=False,
+                                    style={'width': '50%', 'margin': '10px auto 20px auto'}
+                                ),
                                 html.Div(id='breakdown-content', style={'padding': '20px'})
                             ], style={'padding': '20px'})
                         ]),
@@ -524,12 +540,13 @@ def update_kpis(rows):
 
 
 # NEW CALLBACK: P&L Breakdown by Category
-# NEW CALLBACK: P&L Breakdown by Category
+# Callback for P&L Breakdown by Category
 @app.callback(
     Output('breakdown-content', 'children'),
-    Input('trades-table', 'data')
+    Input('trades-table', 'data'),
+    Input('pnl-breakdown-category-filter', 'value') # This input is already there
 )
-def update_pnl_breakdown_charts(rows):
+def update_pnl_breakdown_charts(rows, selected_category):
     if not rows:
         return html.Div("No trade data to display P&L breakdowns.", style={'textAlign': 'center', 'padding': '20px'})
 
@@ -537,20 +554,33 @@ def update_pnl_breakdown_charts(rows):
     # Ensure 'Realized P&L' is numeric, coercing errors and filling NaNs with 0
     df['Realized P&L'] = pd.to_numeric(df['Realized P&L'], errors='coerce').fillna(0)
 
-    charts = []
-    categories = ['Entry Quality', 'Emotional State', 'Score']
+    # UPDATED: Included 'Trade came to you' and 'With Value' in all_categories
+    all_categories = ['Entry Quality', 'Emotional State', 'Score', 'Trade came to me', 'With Value']
+    charts_to_display = []
 
-    for category in categories:
-        # Check if the column exists, and if it has any non-blank/non-null data
+    # Determine which categories to process based on filter selection
+    if selected_category == "Show All":
+        categories_to_process = all_categories
+    else:
+        # If a specific category is selected, only process that one
+        # Ensure selected_category is in all_categories to prevent errors with invalid selections
+        if selected_category in all_categories:
+            categories_to_process = [selected_category]
+        else: # Handle case where an invalid selection might occur (e.g., if options changed but state didn't clear)
+            return html.Div(f"Invalid category selected: '{selected_category}'. Please select from the dropdown.", style={'textAlign': 'center', 'padding': '20px'})
+
+
+    for category in categories_to_process:
+        # Check if the column exists and has any non-blank/non-null data for this category
         if category not in df.columns or df[category].isnull().all() or (df[category] == '').all():
-            charts.append(html.Div(f"No valid data for '{category}' breakdown.", style={'textAlign': 'center', 'padding': '10px'}))
+            charts_to_display.append(html.Div(f"No valid data for '{category}' breakdown.", style={'textAlign': 'center', 'padding': '10px'}))
             continue
 
         # Filter out rows where the category is blank or NaN before grouping
         df_filtered = df[df[category] != ''].dropna(subset=[category])
         
         if df_filtered.empty:
-            charts.append(html.Div(f"No non-blank data for '{category}' breakdown.", style={'textAlign': 'center', 'padding': '10px'}))
+            charts_to_display.append(html.Div(f"No non-blank data for '{category}' breakdown.", style={'textAlign': 'center', 'padding': '10px'}))
             continue
 
         pnl_by_category = df_filtered.groupby(category)['Realized P&L'].sum().reset_index()
@@ -564,13 +594,12 @@ def update_pnl_breakdown_charts(rows):
             elif pnl > 0:
                 bar_colors.append('green')
             else:
-                bar_colors.append('orange') # Use orange for break-even
+                bar_colors.append('orange')
 
         fig = go.Figure(go.Bar(
             x=pnl_by_category[category],
             y=abs(pnl_by_category['Realized P&L']), # Use absolute value for y-axis to always extend upwards
             marker_color=bar_colors,
-            # Display actual (signed) P&L in text and hover
             text=pnl_by_category['Realized P&L'].apply(lambda x: f'${x:,.2f}'), # Formatted P&L text
             textposition='outside', # Text above the bars
             hovertemplate='<b>%{x}</b><br>Total P&L: $%{customdata:,.2f}<extra></extra>', # Use customdata for hover
@@ -588,12 +617,12 @@ def update_pnl_breakdown_charts(rows):
             font={'color': 'black'},
             bargap=0.2 # Add some gap between bars
         )
-        charts.append(dcc.Graph(figure=fig, style={'marginBottom': '30px'})) # Add spacing between charts
+        charts_to_display.append(dcc.Graph(figure=fig, style={'marginBottom': '30px'})) # Add spacing between charts
 
-    if not charts: # If no charts were added due to no data in any category
-        return html.Div("No valid trade data to display P&L breakdowns by category.", style={'textAlign': 'center', 'padding': '20px'})
+    if not charts_to_display: # If no charts were added due to no valid data for any selected category
+        return html.Div("No valid trade data to display P&L breakdowns for the selected criteria.", style={'textAlign': 'center', 'padding': '20px'})
 
-    return html.Div(charts)
+    return html.Div(charts_to_display)
 
 # COMBINED CALLBACK: Handles all table and pressing index updates
 @app.callback(
