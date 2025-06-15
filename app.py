@@ -30,6 +30,18 @@ app.layout = html.Div([
         dcc.Tab(label="Home", value="tab-home", children=[
             # --- Content for the Home Tab - Wrapped in a single Div with minHeight ---
             html.Div(id="home-tab-content-wrapper", style={'padding': '20px', 'minHeight': '800px'}, children=[
+                # NEW: Date Picker for daily metrics
+                html.Div([
+                    html.Label("View Data For:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+                    dcc.DatePickerSingle(
+                        id='date-picker-single',
+                        month_format='MMMM Y',
+                        placeholder='Select a date',
+                        date=datetime.now().date(), # Default to today's date
+                        display_format='YYYY-MM-DD',
+                    ),
+                ], style={'textAlign': 'center', 'marginBottom': '20px'}), # Centered and spaced
+
                 # Main container for the two-column indicator section
                 html.Div([
                     # Column 1: Available Risk Gauge
@@ -838,22 +850,35 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
 # Callback for Available Risk Gauge
 @app.callback(
     Output('available-risk-gauge', 'figure'),
-    Input('trades-table', 'data')
+    Input('trades-table', 'data'),
+    Input('date-picker-single', 'date') # Assuming this input is already added in layout
 )
-def update_available_risk_gauge(rows):
+def update_available_risk_gauge(rows, selected_date):
     daily_risk_limit = config['daily_risk']
 
-    if not rows:
+    df_all_trades = pd.DataFrame(rows)
+    # NEW: Robustly handle 'Entry Time' column
+    if 'Entry Time' in df_all_trades.columns and not df_all_trades['Entry Time'].empty:
+        df_all_trades['Entry Time'] = pd.to_datetime(df_all_trades['Entry Time'], errors='coerce').dt.date
+        # Filter data for the selected date only for daily metrics
+        if selected_date is not None:
+            selected_datetime = pd.to_datetime(selected_date).date()
+            df_filtered = df_all_trades[df_all_trades['Entry Time'] == selected_datetime]
+        else:
+            df_filtered = df_all_trades # If no date selected, consider all current data
+    else:
+        df_filtered = pd.DataFrame() # If 'Entry Time' is missing or empty, filter results in empty DataFrame
+
+    if df_filtered.empty:
         available_risk = daily_risk_limit
         active_risk = 0
         realized_pnl = 0
     else:
-        df = pd.DataFrame(rows)
-        df['Risk ($)'] = pd.to_numeric(df['Risk ($)'], errors='coerce').fillna(0)
-        df['Realized P&L'] = pd.to_numeric(df['Realized P&L'], errors='coerce').fillna(0)
+        df_filtered['Risk ($)'] = pd.to_numeric(df_filtered['Risk ($)'], errors='coerce').fillna(0)
+        df_filtered['Realized P&L'] = pd.to_numeric(df_filtered['Realized P&L'], errors='coerce').fillna(0)
         
-        active_risk = df[df['Status'] == 'Active']['Risk ($)'].sum()
-        realized_pnl = df[df['Status'] == 'Closed']['Realized P&L'].sum()
+        active_risk = df_filtered[df_filtered['Status'] == 'Active']['Risk ($)'].sum()
+        realized_pnl = df_filtered[df_filtered['Status'] == 'Closed']['Realized P&L'].sum()
         
         available_risk = max(0, daily_risk_limit + realized_pnl - active_risk)
 
@@ -894,16 +919,32 @@ def update_available_risk_gauge(rows):
 # Callback for Realized P&L Progress Bar
 @app.callback(
     Output('pnl-progress-bar-container', 'children'),
-    Input('trades-table', 'data')
+    Input('trades-table', 'data'),
+    Input('date-picker-single', 'date') # Assuming this input is already added in layout
 )
-def update_pnl_progress_bar(rows):
+def update_pnl_progress_bar(rows, selected_date):
     profit_target = config.get('profit_target', 1)
     total_realized_pnl = 0
 
-    if rows:
-        df = pd.DataFrame(rows)
-        df['Realized P&L'] = pd.to_numeric(df['Realized P&L'], errors='coerce').fillna(0)
-        total_realized_pnl = df['Realized P&L'].sum()
+    df_all_trades = pd.DataFrame(rows)
+    # NEW: Robustly handle 'Entry Time' column
+    if 'Entry Time' in df_all_trades.columns and not df_all_trades['Entry Time'].empty:
+        df_all_trades['Entry Time'] = pd.to_datetime(df_all_trades['Entry Time'], errors='coerce').dt.date
+        # Filter data for the selected date only
+        if selected_date is not None:
+            selected_datetime = pd.to_datetime(selected_date).date()
+            df_filtered = df_all_trades[df_all_trades['Entry Time'] == selected_datetime]
+        else:
+            df_filtered = pd.DataFrame(rows) # If no date selected, consider all current data
+    else:
+        df_filtered = pd.DataFrame() # If 'Entry Time' is missing or empty, filter results in empty DataFrame
+
+
+    if df_filtered.empty:
+        total_realized_pnl = 0
+    else:
+        df_filtered['Realized P&L'] = pd.to_numeric(df_filtered['Realized P&L'], errors='coerce').fillna(0)
+        total_realized_pnl = df_filtered['Realized P&L'].sum()
 
     progress_val = abs(total_realized_pnl)
     
@@ -975,11 +1016,27 @@ def update_pnl_progress_bar(rows):
 # Callback for Trades per Day Progress Bar
 @app.callback(
     Output('trades-progress-bar-container', 'children'),
-    Input('trades-table', 'data')
+    Input('trades-table', 'data'),
+    Input('date-picker-single', 'date') # Assuming this input is already added in layout
 )
-def update_trades_progress_bar(rows):
-    max_trades = config.get("max_trades_per_day", 1)
-    current_trades = len(rows)
+def update_trades_progress_bar(rows, selected_date):
+    max_trades = config.get('max_trades_per_day', 1)
+
+    df_all_trades = pd.DataFrame(rows)
+    
+    # NEW: Robustly handle 'Entry Time' column
+    if 'Entry Time' in df_all_trades.columns and not df_all_trades['Entry Time'].empty:
+        df_all_trades['Entry Time'] = pd.to_datetime(df_all_trades['Entry Time'], errors='coerce').dt.date
+        # Filter data for the selected date only
+        if selected_date is not None:
+            selected_datetime = pd.to_datetime(selected_date).date()
+            df_filtered = df_all_trades[df_all_trades['Entry Time'] == selected_datetime]
+        else:
+            df_filtered = df_all_trades # If no date selected, consider all current data
+    else:
+        df_filtered = pd.DataFrame() # If 'Entry Time' is missing or empty, filter results in empty DataFrame
+
+    current_trades = len(df_filtered) # Use length of filtered data
 
     percent_used = (current_trades / max_trades) * 100 if max_trades > 0 else 0
     percent_used = max(min(percent_used, 100), 0)
