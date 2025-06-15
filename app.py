@@ -34,9 +34,10 @@ app.layout = html.Div([
                 month_format='MMMM Y',
                 placeholder='Select a date',
                 date=datetime.now().date(), # Default to today's date
-                display_format='YYYY-MM-DD',
+                display_format='MM-DD-YYYY', # CHANGED: Date format
+                style={'width': '150px'} # ADDED: Style to make it smaller
             ),
-        ], style={'textAlign': 'center', 'marginBottom': '20px'}), # Centered and spaced
+        ], style={'textAlign': 'right', 'marginBottom': '15px'}), # CHANGED: textAlign to 'left'
         # Main container for the two-column indicator section
         html.Div([
             # Column 1: Available Risk Gauge
