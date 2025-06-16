@@ -61,8 +61,8 @@ layout = html.Div([
             html.Div([
                 html.H3("Available Risk", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
                 dcc.Graph(id='available-risk-gauge', config={'displayModeBar': False},
-                          style={'height': '180px'})
-            ], style={'flex': '1 1 300px', 'paddingRight': '10px', 'boxSizing': 'border-box'}), # Flex basis for wrapping, boxSizing
+                          style={'height': '180px'}) 
+            ], style={'flex': '1 1 350px', 'paddingRight': '10px', 'boxSizing': 'border-box'}), # Changed flex-basis to 350px, added boxSizing
 
             # Column 2: Stacked Progress Bars and Placeholder
             html.Div([
@@ -70,13 +70,13 @@ layout = html.Div([
                 html.Div([
                     html.H3("Realized P&L Progress", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
                     html.Div(id='pnl-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
-                ], style={'marginBottom': '15px'}),
+                ], style={'width': '100%', 'height': 'auto', 'maxWidth': '100%', 'boxSizing': 'border-box', 'marginBottom': '15px'}), # Added maxWidth: '100%', boxSizing
 
                 # Row 2: Trades per Day Progress Bar
                 html.Div([
                     html.H3("Trades per Day", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
                     html.Div(id='trades-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
-                ], style={'marginBottom': '30px'}),
+                ], style={'width': '100%', 'height': 'auto', 'maxWidth': '100%', 'boxSizing': 'border-box', 'marginBottom': '30px'}), # Added maxWidth: '100%', boxSizing
 
                 # Row 3: Pressing Roadmap
                 html.Div([
@@ -117,10 +117,18 @@ layout = html.Div([
                         ]
                     ),
                     html.Div(id='pressing-roadmap-container', style={'width': '100%', 'height': 'auto', 'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap', 'padding': '10px 0'}),
-                ], style={'marginBottom': '0px'})
+                ], style={'width': '100%', 'height': 'auto', 'maxWidth': '100%', 'boxSizing': 'border-box', 'marginBottom': '0px'}), # Added maxWidth: '100%', boxSizing
 
-            ], style={'flex': '1 1 300px', 'paddingLeft': '10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'}), # Flex basis, boxSizing
-        ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'marginBottom': '20px', 'width': '100%'}), # ADDED flexWrap: 'wrap' and width: '100%'
+            ], style={'flex': '1 1 350px', 'paddingLeft': '10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'}), # Changed flex-basis to 350px, added boxSizing
+        ], style={
+            'display': 'flex',
+            'flexWrap': 'wrap', # CRUCIAL: Confirmed to be here
+            'justifyContent': 'space-around',
+            'alignItems': 'flex-start',
+            'width': '100%',
+            'marginBottom': '20px',
+            'boxSizing': 'border-box' # Ensures padding/border are included in the width
+        }),
 
         # Export to Excel Button
         html.Div([
@@ -264,7 +272,7 @@ layout = html.Div([
                 }
                 ]
             )
-        ], style={'marginTop': '20px', 'marginBottom': '20px', 'width': '95%', 'margin': '0 auto'}),
+        ], style={'marginTop': '20px', 'marginBottom': '20px', 'width': '95%', 'margin': '0 auto', 'overflowX': 'auto'}), # ADDED overflowX: 'auto'
 
         # Section for Input Fields (below table)
         html.Div([
@@ -297,7 +305,7 @@ layout = html.Div([
                         )
                     ], style={'marginBottom': '15px'}),
 
-                ], style={'flex': '1 1 300px', 'padding': '0 10px', 'boxSizing': 'border-box'}), # Added flex-basis and boxSizing
+                ], style={'flex': '1 1 280px', 'padding': '0 10px', 'boxSizing': 'border-box'}), # Changed flex-basis to 280px, added boxSizing
 
                 # Column 2
                 html.Div([
@@ -356,7 +364,7 @@ layout = html.Div([
                         )
                     ], style={'marginBottom': '0px'}),
 
-                ], style={'flex': '1 1 300px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between'}), # Added flex-basis and boxSizing
+                ], style={'flex': '1 1 280px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between'}), # Changed flex-basis to 280px, added boxSizing
 
                 # Column 3 (Notes)
                 html.Div([
@@ -368,9 +376,9 @@ layout = html.Div([
                         value='',
                         style={'width': '100%', 'height': '180px', 'resize': 'vertical'}
                     )
-                ], style={'flex': '1 1 300px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column'}), # Added flex-basis and boxSizing
+                ], style={'flex': '1 1 280px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column'}), # Changed flex-basis to 280px, added boxSizing
 
-            ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px'}), # Added flexWrap and width:100%
+            ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px', 'boxSizing': 'border-box'}), # ADDED boxSizing
 
         ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px'}),
          
@@ -385,7 +393,7 @@ layout = html.Div([
     dcc.Tabs(id="main-analytical-tabs", value='tab-cumulative-pnl', children=[ # ID changed to main-analytical-tabs
         dcc.Tab(label='Cumulative P&L', value='tab-cumulative-pnl', children=[
             html.Div([
-                dcc.Graph(id='cumulative-pnl-chart', style={'height': '400px'})
+                dcc.Graph(id='cumulative-pnl-chart', style={'height': '400px', 'width': '100%'}) # ADDED width: '100%'
             ], style={'padding': '20px'})
         ]),
         dcc.Tab(label='KPIs', value='tab-kpis', children=[

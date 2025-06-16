@@ -20,3 +20,19 @@
     visibility: visible !important;
     bottom: calc(100% + 5px) !important; /* Move slightly higher on hover */
 }
+
+/* Ensure padding/border are included in element's width */
+* {
+    box-sizing: border-box;
+}
+
+/* Hide the Dash debug menu. It often causes overflow during development. */
+.dash-debug-menu__outer {
+    display: none !important; /* Hide it entirely */
+}
+
+/* Ensure images, svgs, etc., don't overflow their containers */
+img, video, canvas, svg {
+    max-width: 100%;
+    height: auto;
+}

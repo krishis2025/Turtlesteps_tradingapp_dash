@@ -50,10 +50,15 @@ app.layout = html.Div([
         html.Div([
             dash.page_container # This is where the content of each registered page will be displayed
         ], style={
-            'marginLeft': '220px', # Space for sidebar (200px width + 20px padding)
+            'marginLeft': '220px',
             'padding': '20px',
-            'flexGrow': 1 # Allow content area to grow
-        })
+            'flexGrow': 1,
+            'flexShrink': 0, # NEW: Allow it to shrink
+            'flexBasis': 'auto', # NEW: Base size from content
+            'width': 'calc(100% - 220px)', # NEW: Explicitly calculate width based on remaining space
+            'boxSizing': 'border-box', # NEW: Ensure padding is included in width
+            'overflowX': 'hidden' # NEW: Crucial - hides any remaining overflow within this container (Use with caution, but necessary for page scroll)
+        }),
     ], style={'display': 'flex'}), # Flex container for sidebar and page content
 
     # Global components that are shared across all pages or manage global state/actions
