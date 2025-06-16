@@ -62,8 +62,7 @@ layout = html.Div([
                 html.H3("Available Risk", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
                 dcc.Graph(id='available-risk-gauge', config={'displayModeBar': False},
                           style={'height': '180px'})
-            ], style={'flex': '1', 'minWidth': '300px', 'paddingRight': '10px'}),
-            # This means: flex-grow:1, flex-shrink:1, flex-basis:300px. Items will try to be 300px wide, but grow/shrink.reverted
+            ], style={'flex': '1 1 300px', 'paddingRight': '10px', 'boxSizing': 'border-box'}), # Flex basis for wrapping, boxSizing
 
             # Column 2: Stacked Progress Bars and Placeholder
             html.Div([
@@ -120,8 +119,7 @@ layout = html.Div([
                     html.Div(id='pressing-roadmap-container', style={'width': '100%', 'height': 'auto', 'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap', 'padding': '10px 0'}),
                 ], style={'marginBottom': '0px'})
 
-            ], style={'flex': '1', 'minWidth': '300px', 'paddingLeft': '10px', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'})
-            # This means: flex-grow:1, flex-shrink:1, flex-basis:300px. Items will try to be 300px wide, but grow/shrink. reverted
+            ], style={'flex': '1 1 300px', 'paddingLeft': '10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'}), # Flex basis, boxSizing
         ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'marginBottom': '20px', 'width': '100%'}), # ADDED flexWrap: 'wrap' and width: '100%'
 
         # Export to Excel Button
@@ -276,6 +274,7 @@ layout = html.Div([
             html.Div([
                 # Column 1
                 html.Div([
+                    #Row1: Did Trade Come to You?
                     html.Div([
                         html.Label("Did trade come to you?", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
                         dcc.Dropdown(
@@ -286,138 +285,137 @@ layout = html.Div([
                             style={'width': '100%'}
                         )
                     ], style={'marginBottom': '15px'}),
-
-                            html.Div([
-                                html.Label("With Value?", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
-                                dcc.Dropdown(
-                                    id='input-with-value',
-                                    options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
-                                    value='',
-                                    clearable=False,
-                                    style={'width': '100%'}
-                                )
-                            ], style={'marginBottom': '15px'}),
-
-                        ], style={'flex': '1', 'padding': '0 10px'}),
-
-                        # Column 2
-                        html.Div([
-                            html.Div([
-                                html.Label("Entry Quality:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
-                                dcc.Dropdown(
-                                    id='input-entry-quality',
-                                    options=[
-                                        {'label': ' ', 'value': ''},
-                                        {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
-                                        {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
-                                        {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
-                                        {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
-                                        {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
-                                    ],
-                                    value='',
-                                    clearable=False,
-                                    style={'width': '100%'}
-                                )
-                            ], style={'marginBottom': '15px'}),
-
-                            html.Div([
-                                html.Label("Emotional State:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
-                                dcc.Dropdown(
-                                    id='input-psychological-state',
-                                    options=[
-                                        {'label': ' ', 'value': ''},
-                                        {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
-                                        {'label': 'Get back losses', 'value': 'Get back losses'},
-                                        {'label': 'FOMO', 'value': 'FOMO'},
-                                        {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
-                                        {'label': 'Overconfidence', 'value': 'Overconfidence'},
-                                        {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
-                                        {'label': 'Distracted', 'value': 'Distracted'},
-                                    ],
-                                    value='',
-                                    clearable=False,
-                                    style={'width': '100%'}
-                                )
-                            ], style={'marginBottom': '15px'}),
-
-                            html.Div([
-                                html.Label("Score:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
-                                dcc.Dropdown(
-                                    id='input-score',
-                                    options=[
-                                        {'label': ' ', 'value': ''},
-                                        {'label': 'A+', 'value': 'A+'},
-                                        {'label': 'B', 'value': 'B'},
-                                        {'label': 'C', 'value': 'C'},
-                                    ],
-                                    value='',
-                                    clearable=False,
-                                    style={'width': '100%'}
-                                )
-                            ], style={'marginBottom': '0px'}),
-
-                        ], style={'flex': '1', 'padding': '0 10px', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between'}),
-                        # This means: flex-grow:1, flex-shrink:1, flex-basis:300px. Items will try to be 300px wide, but grow/shrink. reverted
-
-                        # Column 3 (Notes)
-                        html.Div([
-                            html.Label("Notes (max 400 chars):", style={'fontWeight': 'bold', 'marginBottom': '5px', 'display': 'block'}),
-                            dcc.Textarea(
-                                id='input-notes',
-                                placeholder='Enter notes here...',
-                                maxLength=400,
-                                value='',
-                                style={'width': '100%', 'height': '180px', 'resize': 'vertical'}
-                            )
-                        ], style={'flex': '1', 'padding': '0 10px', 'display': 'flex', 'flexDirection': 'column'}),
-                        # This means: flex-grow:1, flex-shrink:1, flex-basis:300px. Items will try to be 300px wide, but grow/shrink. reverted
-
-                    ], style={'display': 'flex', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px'}),
-
-                ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px'}),
-                #style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px'}),
-
-                # Add Trade button (Moved here, and is now the only one)
-                html.Div([
-                    html.Button('Add Trade', id='add-trade-button', n_clicks=0, style={'marginBottom': '20px', 'padding': '12px 25px', 'fontSize': '18px', 'cursor': 'pointer'})
-                ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}),
-            ]), 
-
-            # NEW: Main Tabs for Analytical Views (elevated from 'inner-analytical-tabs')
-            dcc.Tabs(id="main-analytical-tabs", value='tab-cumulative-pnl', children=[ # ID changed to main-analytical-tabs
-                dcc.Tab(label='Cumulative P&L', value='tab-cumulative-pnl', children=[
+                    #Row2: With Value?
                     html.Div([
-                        dcc.Graph(id='cumulative-pnl-chart', style={'height': '400px'})
-                    ], style={'padding': '20px'})
-                ]),
-                dcc.Tab(label='KPIs', value='tab-kpis', children=[
-                    html.Div([
-                        html.Div(id='kpis-content', style={'padding': '20px'})
-                    ], style={'padding': '20px'})
-                ]),
-                dcc.Tab(label='P&L Breakdown by Category', value='tab-pnl-breakdown', children=[
-                    html.Div([
-                        # SNIPPET FOR THE DROPDOWN FILTER HERE
-                        html.Label("Draw PnL by Category:", style={'fontWeight': 'bold', 'marginRight': '10px', 'display': 'block', 'textAlign': 'center'}),
+                        html.Label("With Value?", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
                         dcc.Dropdown(
-                            id='pnl-breakdown-category-filter',
-                            options=[
-                                {'label': 'Entry Quality', 'value': 'Entry Quality'},
-                                {'label': 'Emotional State', 'value': 'Emotional State'},
-                                {'label': 'Score', 'value': 'Score'},
-                                {'label': 'Trade came to you', 'value': 'Trade came to me'}, # NEW OPTION
-                                {'label': 'With Value', 'value': 'With Value'},               # NEW OPTION
-                                {'label': 'Show All', 'value': 'Show All'}
-                            ],
-                            value='Show All',
+                            id='input-with-value',
+                            options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}, {'label': ' ', 'value': ''}],
+                            value='',
                             clearable=False,
-                            style={'width': '50%', 'margin': '10px auto 20px auto'}
-                        ),
-                        html.Div(id='breakdown-content', style={'padding': '20px'})
-                    ], style={'padding': '20px'})
-                ]),
-            ]), # End of main-analytical-tabs
-        #]), # Corrected: This is the actual closing of children list for app.layout.
+                            style={'width': '100%'}
+                        )
+                    ], style={'marginBottom': '15px'}),
+
+                ], style={'flex': '1 1 300px', 'padding': '0 10px', 'boxSizing': 'border-box'}), # Added flex-basis and boxSizing
+
+                # Column 2
+                html.Div([
+                    #Row1: Entry Quality
+                    html.Div([
+                        html.Label("Entry Quality:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+                        dcc.Dropdown(
+                            id='input-entry-quality',
+                            options=[
+                                {'label': ' ', 'value': ''},
+                                {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
+                                {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
+                                {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
+                                {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
+                                {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
+                            ],
+                            value='',
+                            clearable=False,
+                            style={'width': '100%'}
+                        )
+                    ], style={'marginBottom': '15px'}),
+                    #Row2: Emotional State
+                    html.Div([
+                        html.Label("Emotional State:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+                        dcc.Dropdown(
+                            id='input-psychological-state',
+                            options=[
+                                {'label': ' ', 'value': ''},
+                                {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
+                                {'label': 'Get back losses', 'value': 'Get back losses'},
+                                {'label': 'FOMO', 'value': 'FOMO'},
+                                {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
+                                {'label': 'Overconfidence', 'value': 'Overconfidence'},
+                                {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
+                                {'label': 'Distracted', 'value': 'Distracted'},
+                            ],
+                            value='',
+                            clearable=False,
+                            style={'width': '100%'}
+                        )
+                    ], style={'marginBottom': '15px'}),
+                    #Row3: Sizing
+                    html.Div([
+                        html.Label("Score:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+                        dcc.Dropdown(
+                            id='input-score',
+                            options=[
+                                {'label': ' ', 'value': ''},
+                                {'label': 'A+', 'value': 'A+'},
+                                {'label': 'B', 'value': 'B'},
+                                {'label': 'C', 'value': 'C'},
+                            ],
+                            value='',
+                            clearable=False,
+                            style={'width': '100%'}
+                        )
+                    ], style={'marginBottom': '0px'}),
+
+                ], style={'flex': '1 1 300px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between'}), # Added flex-basis and boxSizing
+
+                # Column 3 (Notes)
+                html.Div([
+                    html.Label("Notes (max 400 chars):", style={'fontWeight': 'bold', 'marginBottom': '5px', 'display': 'block'}),
+                    dcc.Textarea(
+                        id='input-notes',
+                        placeholder='Enter notes here...',
+                        maxLength=400,
+                        value='',
+                        style={'width': '100%', 'height': '180px', 'resize': 'vertical'}
+                    )
+                ], style={'flex': '1 1 300px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column'}), # Added flex-basis and boxSizing
+
+            ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px'}), # Added flexWrap and width:100%
+
+        ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px'}),
+         
+
+        # Add Trade button (Moved here, and is now the only one)
+        html.Div([
+            html.Button('Add Trade', id='add-trade-button', n_clicks=0, style={'marginBottom': '20px', 'padding': '12px 25px', 'fontSize': '18px', 'cursor': 'pointer'})
+        ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}),
+    ]), 
+
+    # NEW: Main Tabs for Analytical Views (elevated from 'inner-analytical-tabs')
+    dcc.Tabs(id="main-analytical-tabs", value='tab-cumulative-pnl', children=[ # ID changed to main-analytical-tabs
+        dcc.Tab(label='Cumulative P&L', value='tab-cumulative-pnl', children=[
+            html.Div([
+                dcc.Graph(id='cumulative-pnl-chart', style={'height': '400px'})
+            ], style={'padding': '20px'})
+        ]),
+        dcc.Tab(label='KPIs', value='tab-kpis', children=[
+            html.Div([
+                html.Div(id='kpis-content', style={'padding': '20px'})
+            ], style={'padding': '20px'})
+        ]),
+        dcc.Tab(label='P&L Breakdown by Category', value='tab-pnl-breakdown', children=[
+            html.Div([
+                # SNIPPET FOR THE DROPDOWN FILTER HERE
+                html.Label("Draw PnL by Category:", style={'fontWeight': 'bold', 'marginRight': '10px', 'display': 'block', 'textAlign': 'center'}),
+                dcc.Dropdown(
+                    id='pnl-breakdown-category-filter',
+                    options=[
+                        {'label': 'Entry Quality', 'value': 'Entry Quality'},
+                        {'label': 'Emotional State', 'value': 'Emotional State'},
+                        {'label': 'Score', 'value': 'Score'},
+                        {'label': 'Trade came to you', 'value': 'Trade came to me'}, # NEW OPTION
+                        {'label': 'With Value', 'value': 'With Value'},               # NEW OPTION
+                        {'label': 'Show All', 'value': 'Show All'}
+                    ],
+                    value='Show All',
+                    clearable=False,
+                    style={'width': '50%', 'margin': '10px auto 20px auto'}
+                ),
+                html.Div(id='breakdown-content', style={'padding': '20px'})
+            ], style={'padding': '20px'})
+        ]),
+    ]), # End of main-analytical-tabs
+    #]), # Corrected: This is the actual closing of children list for app.layout.
 
     html.Div(id='debug-output', style={'marginTop': '20px', 'color': 'red'}),
     dcc.Store(id='current-pressing-index', data=0),
