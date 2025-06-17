@@ -13,7 +13,7 @@ app.config.suppress_callback_exceptions = True
 # Define the main layout of the application
 # This includes the sidebar and the area where page content will be displayed
 app.layout = html.Div([
-    #html.H1("Trading Dashboard", style={'textAlign': 'center', 'marginBottom': '20px'}),
+    html.H2("Trading Dashboard", style={'textAlign': 'center', 'marginBottom': '20px'}), # Corrected: H2 title
 
     # dcc.Location component is crucial for multi-page apps
     # It reads the current URL and allows callbacks (implicitly handled by dash.page_registry)
@@ -24,22 +24,21 @@ app.layout = html.Div([
     html.Div([
         # Sidebar
         html.Div([
-            html.H2("Navigation", style={'textAlign': 'center', 'color': 'white'}),
-            html.Hr(style={'borderColor': 'white'}),
+            html.H2("Navigation", style={'textAlign': 'center', 'color': '#4a4a4a', 'fontFamily': 'Arial, sans-serif'}), # Apply font and color to H2
+            html.Hr(style={'borderColor': '#ccc'}), # Adjusted HR color for light background
+            # In app.py, inside app.layout, within the sidebar Div:
             html.Div(
                 children=[
-                    html.P(dcc.Link(f"{page['name']}", href=page["path"], style={'color': 'white', 'textDecoration': 'none', 'padding': '10px 0', 'display': 'block'}))
+                    html.P(dcc.Link(f"{page['name']}", href=page["path"], style={'color': '#4a4a4a', 'textDecoration': 'none', 'padding': '10px 0', 'display': 'block', 'fontFamily': 'Arial, sans-serif'}))
                     for page in dash.page_registry.values()
-                    if page["name"] in ["Daily Helper"] # Only list pages you've created so far
-                    # We will add "Historical Data" and "Analytical Views" links here as we build them.
-                    # You can also add a dedicated "Home" page link here later if you create a pages/home.py
+                    # The 'if page["name"] in [...]' filter is now REMOVED
                 ],
-                style={'padding': '10px'}
+                style={'padding': '10px', 'color': '#4a4a4a', 'fontFamily': 'Arial, sans-serif'}
             ),
         ], style={
             'width': '200px',
             'minHeight': '100vh', # Full height sidebar
-            'backgroundColor': '#333', # Dark background
+            'backgroundColor': '#f8f8f8', # Light grey background
             'padding': '20px',
             'boxShadow': '2px 0 5px rgba(0,0,0,0.1)',
             'position': 'fixed', # Fixed sidebar
@@ -53,11 +52,11 @@ app.layout = html.Div([
             'marginLeft': '220px',
             'padding': '20px',
             'flexGrow': 1,
-            'flexShrink': 0, # NEW: Allow it to shrink
-            'flexBasis': 'auto', # NEW: Base size from content
-            'width': 'calc(100% - 220px)', # NEW: Explicitly calculate width based on remaining space
-            'boxSizing': 'border-box', # NEW: Ensure padding is included in width
-            'overflowX': 'hidden' # NEW: Crucial - hides any remaining overflow within this container (Use with caution, but necessary for page scroll)
+            'flexShrink': 0, # Allow it to shrink
+            'flexBasis': 'auto', # Base size from content
+            'width': 'calc(100% - 220px)', # Explicitly calculate width based on remaining space
+            'boxSizing': 'border-box', # Ensure padding is included in width
+            'overflowX': 'hidden' # Crucial - hides any remaining overflow within this container (Use with caution, but necessary for page scroll)
         }),
     ], style={'display': 'flex'}), # Flex container for sidebar and page content
 

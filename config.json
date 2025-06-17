@@ -5,10 +5,18 @@
   "default_futures_type": "MES",
   "default_size": 5,
   "futures_types": {
-    "ES": { "mf": 50 },
-    "MES": { "mf": 5 }
+    "ES": {
+      "mf": 50
+    },
+    "MES": {
+      "mf": 5
+    }
   },
-  "pressing_sequence_multipliers": [1, 2, 1.5, 3]
+  "pressing_sequence_multipliers": [
+    1.0,
+    2.0,
+    1.5,
+    3.0
+  ],
+  "database_name": "sandbox_trades.db"
 }
-
-

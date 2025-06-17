@@ -8,6 +8,13 @@ import plotly.graph_objects as go
 import io # For dcc.send_data_frame
 import base64 # Needed for load_trades_json
 
+# ADD THESE LINES SQLlite integration
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils')) # Add 'utils' to Python path
+import database as db # Import your database utility functions
+
+
 # Load config (assuming config.json is in the project root)
 CONFIG_FILE = 'config.json'
 try:
@@ -25,6 +32,14 @@ except FileNotFoundError:
         "futures_types": {"ES": { "mf": 50 }, "MES": { "mf": 5 }}
     }
 
+# Initialize the database when this page module is imported
+# This ensures the DB file and table are created/ready
+try:
+    db.initialize_db()
+except Exception as e:
+    print(f"Error initializing database from daily_helper.py: {e}")
+    # You might want a more visible error on the dashboard if DB init fails.
+
 # Register this page with Dash
 dash.register_page(
     __name__,
@@ -34,8 +49,18 @@ dash.register_page(
     description='Daily trade entry and monitoring.'
 )
 
-# Initial empty data for the table
+
+# Load today's trades from the database for initial display
 initial_data = []
+try:
+    # Fetch trades for today's date from DB
+    today_date = datetime.now().date()
+    initial_data = db.fetch_trades_by_date(today_date)
+    print(f"Loaded {len(initial_data)} trades for {today_date} from DB for daily helper.")
+except Exception as e:
+    print(f"Error loading today's data from DB for daily helper: {e}")
+    # Initial data remains empty if there's an error
+
 # --- Layout for the Daily Helper Page ---
 layout = html.Div([
     #html.H2("Trading Dashboard - Daily Helper", style={'textAlign': 'center', 'marginBottom': '20px'}),
@@ -141,6 +166,8 @@ layout = html.Div([
             dash_table.DataTable(
                 id='trades-table',
                 columns=[
+                    # Define the columns for the DataTable
+                    {"name": "DB ID", "id": "id", "type": "numeric", "editable": False, "hideable": True}, # CORRECTED: Removed 'header_align'
                     {"name": "Trade #", "id": "Trade #", "type": "numeric", "editable": False},
                     {"name": "Futures Type", "id": "Futures Type", "presentation": "dropdown"},
                     {"name": "Size", "id": "Size", "type": "numeric", "editable": True},
@@ -248,9 +275,10 @@ layout = html.Div([
                     }
                 ],
                 style_cell={
-                    'textAlign': 'left',
+                    'textAlign': 'center',
                     'padding': '5px',
                     'fontFamily': 'sans-serif',
+                    'fontSize': '14px',
                     'minWidth': 80, 'width': 80, 'maxWidth': 180
                 },
                 style_header={
@@ -746,96 +774,88 @@ def update_pnl_breakdown_charts(rows, selected_category):
 
 
 # COMBINED CALLBACK: Handles all table and pressing index updates
+# Locate this: @dash.callback(Output('trades-table', 'data'), ...)
+# REPLACE its entire content with this:
+
+# Locate this: @dash.callback(Output('trades-table', 'data'), ...)
+# REPLACE its entire content with this:
+
 @dash.callback(
-    Output("trades-table", "data"),
-    Output("current-pressing-index", "data"),
-    Output("input-trade-came-to-you", "value"),
-    Output("input-with-value", "value"),
-    Output("input-entry-quality", "value"),
-    Output("input-psychological-state", "value"),
-    Output("input-notes", "value"),
-    Output("input-score", "value"),
-    Input("add-trade-button", "n_clicks"),
-    Input("trades-table", "data"),
-    State("trades-table", "data_previous"),
-    State("current-pressing-index", "data"),
-    State("input-trade-came-to-you", "value"),
-    State("input-with-value", "value"),
-    State("input-entry-quality", "value"),
-    State("input-psychological-state", "value"),
-    State("input-notes", "value"),
-    State("input-score", "value"),
-    prevent_initial_call=True,
+    Output('trades-table', 'data'),
+    Output('current-pressing-index', 'data'),
+    Output('input-trade-came-to-you', 'value'),
+    Output('input-with-value', 'value'),
+    Output('input-entry-quality', 'value'),
+    Output('input-psychological-state', 'value'),
+    Output('input-notes', 'value'),
+    Output('input-score', 'value'),
+    Input('add-trade-button', 'n_clicks'),
+    Input('trades-table', 'data'), # This input triggers on ANY table change (add, edit, delete)
+    State('trades-table', 'data_previous'),
+    State('current-pressing-index', 'data'),
+    State('input-trade-came-to-you', 'value'),
+    State('input-with-value', 'value'),
+    State('input-entry-quality', 'value'),
+    State('input-psychological-state', 'value'),
+    State('input-notes', 'value'),
+    State('input-score', 'value'),
+    prevent_initial_call=True
 )
-def handle_all_table_updates(
-    n_clicks,
-    current_table_data,
-    previous_table_data,
-    current_pressing_index,
-    trade_came_to_you_val,
-    with_value_val,
-    entry_quality_val,
-    psychological_state_val,
-    notes_val,
-    score_val,
-):
+def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, current_pressing_index,
+                             trade_came_to_you_val, with_value_val, entry_quality_val, psychological_state_val, notes_val, score_val):
     ctx = callback_context
 
     if not ctx.triggered:
         raise dash.exceptions.PreventUpdate
 
-    trigger_id = ctx.triggered[0]["prop_id"].split(".")[0]
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
 
-    updated_rows = current_table_data
-    new_pressing_index = current_pressing_index
+    updated_rows = list(current_table_data) # Always work with a mutable copy of the current DataTable data
+    new_pressing_index = current_pressing_index # Initialize with current value from dcc.Store
 
-    pressing_action_in_this_update = None
+    pressing_action_in_this_update = None 
 
     def safe_float(val):
         try:
-            return float(val) if val not in [None, ""] else None
+            return float(val) if val not in [None, ''] else None
         except ValueError:
             return None
 
-    reset_trade_came_to_you_val = ""
-    reset_with_value_val = ""
-    reset_entry_quality_val = ""
-    reset_psychological_state_val = ""
-    reset_notes_val = ""
-    reset_score_val = ""
+    # Define reset values for input fields (returned when 'Add Trade' button is clicked)
+    reset_trade_came_to_you_val = ''
+    reset_with_value_val = ''
+    reset_entry_quality_val = ''
+    reset_psychological_state_val = ''
+    reset_notes_val = ''
+    reset_score_val = ''
 
-    # --- Logic for Add Trade Button ---
-    if trigger_id == "add-trade-button":
+    # --- Logic for ADDING NEW ROW via 'Add Trade' Button ---
+    if trigger_id == 'add-trade-button':
         if n_clicks > 0:
-            rows_to_modify = (
-                list(current_table_data) if current_table_data is not None else []
-            )
-            trade_num = len(rows_to_modify) + 1
-            default_futures_type = config["default_futures_type"]
-            default_size = config["default_size"]
+            # Calculate new 'Trade #' for user-facing sequential display
+            # This 'Trade #' is sequential for the session, not necessarily unique across DB
+            max_existing_session_trade_num = max([r.get('Trade #', 0) for r in updated_rows if isinstance(r.get('Trade #'), (int, float))], default=0)
+            trade_num = max_existing_session_trade_num + 1
 
-            if (
-                default_futures_type in config["futures_types"]
-                and default_size is not None
-                and default_size > 0
-            ):
-                mf = config["futures_types"][default_futures_type]["mf"]
-                stop_loss_pts = config["daily_risk"] / (default_size * mf)
+            default_futures_type = config['default_futures_type']
+            default_size = config['default_size']
+            
+            # Calculate Stop Loss and Risk for new row
+            if default_futures_type in config['futures_types'] and default_size is not None and default_size > 0:
+                mf = config['futures_types'][default_futures_type]['mf']
+                stop_loss_pts = config['daily_risk'] / (default_size * mf)
                 risk_dollars = stop_loss_pts * default_size * mf
             else:
                 stop_loss_pts = None
                 risk_dollars = None
-                print(
-                    "Warning: Could not calculate default Stop Loss/Risk. Check config or default values."
-                )
+                print("Warning: Could not calculate default Stop Loss/Risk for new trade. Check config or default values.")
 
+            # Create the new row dictionary
             new_row = {
                 "Trade #": trade_num,
                 "Futures Type": default_futures_type,
                 "Size": default_size,
-                "Stop Loss (pts)": (
-                    round(stop_loss_pts, 2) if stop_loss_pts is not None else ""
-                ),
+                "Stop Loss (pts)": round(stop_loss_pts, 2) if stop_loss_pts is not None else "",
                 "Risk ($)": round(risk_dollars, 2) if risk_dollars is not None else "",
                 "Status": "Active",
                 "Points Realized": "",
@@ -850,9 +870,24 @@ def handle_all_table_updates(
                 "Sizing": "Base",
                 "Notes": notes_val,
             }
-            rows_to_modify.append(new_row)
-            updated_rows = rows_to_modify
+            # Add the new row to the DataTable's current data list first
+            updated_rows.append(new_row) 
 
+            # Save the newly added trade to the SQLite database
+            try:
+                # db.save_trade_to_db returns the new SQLite 'id'
+                new_db_id = db.save_trade_to_db(new_row)
+                if new_db_id is not None:
+                    new_row['id'] = new_db_id # Store the DB ID in the DataTable row (hidden column)
+                    print(f"New trade {new_row.get('Trade #')} added to DB with ID {new_db_id}.")
+                else:
+                    print(f"Failed to get DB ID for trade {new_row.get('Trade #')}, DB save likely failed.")
+                    updated_rows.pop() # Remove from DataTable if DB save truly failed
+            except Exception as e:
+                print(f"Error saving new trade {new_row.get('Trade #')} to DB: {e}")
+                updated_rows.pop() # Remove from DataTable if an exception occurred
+            
+            # Return all outputs, including reset values for input fields
             return [
                 updated_rows,
                 new_pressing_index,
@@ -861,160 +896,223 @@ def handle_all_table_updates(
                 reset_entry_quality_val,
                 reset_psychological_state_val,
                 reset_notes_val,
-                reset_score_val,
+                reset_score_val
             ]
 
-    # --- Logic for Table Data Changes ---
-    elif trigger_id == "trades-table":
-        if previous_table_data is None:
+    # --- Logic for TABLE DATA CHANGES (EDITING OR DELETING ROWS) ---
+    elif trigger_id == 'trades-table':
+        if previous_table_data is None: # Should not happen due to prevent_initial_call
             raise dash.exceptions.PreventUpdate
 
-        updated_rows_from_table_logic = []
+        # --- 1. Check for DELETED rows ---
+        if len(current_table_data) < len(previous_table_data):
+            deleted_db_ids = []
+            # Find which trades (by their unique DB 'id') were deleted
+            previous_db_id_map = {row.get('id'): row for row in previous_table_data if 'id' in row and row.get('id') is not None}
+            current_db_ids = {row.get('id'): row for row in current_table_data if 'id' in row and row.get('id') is not None} # Changed to dict for easier lookup
+            
+            for db_id, row_data in previous_db_id_map.items():
+                if db_id not in current_db_ids:
+                    deleted_db_ids.append(db_id)
+            
+            for db_id in deleted_db_ids:
+                try:
+                    db.delete_trade_from_db(db_id) # Delete from SQLite using internal DB ID
+                    print(f"Trade with DB ID {db_id} deleted from DB.")
+                except Exception as e:
+                    print(f"Error deleting trade with DB ID {db_id} from DB: {e}")
+            
+            # If any rows were deleted, reset pressing index
+            if deleted_db_ids:
+                new_pressing_index = 0
+                pressing_action_in_this_update = 'loss' # Indicate a "loss" for pressing roadmap context (e.g. invalidation)
 
-        pressing_sequence = config.get("pressing_sequence_multipliers", [1, 2, 1.5, 3])
-        max_pressing_index = len(pressing_sequence) - 1
+        # --- 2. Check for MODIFIED or NEWLY PASTED rows ---
+        # Convert previous data to a dict for easy lookup by 'id'
+        previous_db_id_lookup = {row.get('id'): row for row in previous_table_data if 'id' in row and row.get('id') is not None}
 
-        for i, row in enumerate(current_table_data):
-            row_copy = row.copy()
+        for i, current_row_data in enumerate(current_table_data):
+            # Safely get previous row data for comparison. If current_row_data has no id or id not in lookup, previous_data will be empty dict.
+            current_row_db_id = current_row_data.get('id')
+            previous_row_data_at_index = previous_db_id_lookup.get(current_row_db_id, {}) 
 
-            is_existing_row = i < len(previous_table_data)
+            # Populate status_previous and points_realized_previous from previous_row_data_at_index
+            status_previous = previous_row_data_at_index.get("Status")
+            points_realized_previous = previous_row_data_at_index.get("Points Realized")
 
-            status_current = row_copy.get("Status")
-            status_previous = (
-                previous_table_data[i].get("Status") if is_existing_row else None
-            )
+            # Determine if this row was modified (if existing) or is a new paste-in
+            modified_or_new_row_detected = False
+            
+            # If it's a completely new row pasted in (has no DB ID or ID is not in previous lookup)
+            if current_row_db_id is None or current_row_db_id not in previous_db_id_lookup:
+                modified_or_new_row_detected = True # Force it to be detected as a new row to be saved
+                
+            # If the current row's content is different from its previous state based on DB ID (for existing rows)
+            elif current_row_data != previous_row_data_at_index: 
+                modified_or_new_row_detected = True
 
-            points_realized_current = row_copy.get("Points Realized")
-            points_realized_previous = (
-                previous_table_data[i].get("Points Realized")
-                if is_existing_row
-                else None
-            )
+            if modified_or_new_row_detected:
+                row_copy = current_row_data.copy() # Work with a mutable copy of the row's data
+                
+                # If it's a NEW row (no ID or ID not in previous lookup)
+                if row_copy.get('id') is None or row_copy.get('id') not in previous_db_id_lookup:
+                    # Assign a new 'Trade #' for user-facing sequential display (for pasted row)
+                    max_existing_session_trade_num = max([r.get('Trade #', 0) for r in updated_rows if isinstance(r.get('Trade #'), (int, float))], default=0)
+                    row_copy['Trade #'] = max_existing_session_trade_num + 1
 
-            points_realized_current_num = safe_float(points_realized_current)
-            points_realized_previous_num = safe_float(points_realized_previous)
+                    # Re-calculate P&L/Risk/Exit Time for this newly pasted row (if needed)
+                    futures_type_for_calc = row_copy.get("Futures Type")
+                    size_for_calc = row_copy.get("Size")
+                    stop_loss_pts_for_calc = row_copy.get("Stop Loss (pts)")
+                    current_points_realized_for_calc = row_copy.get("Points Realized")
 
-            if (
-                points_realized_current_num is not None
-                and points_realized_previous_num is None
-            ):
-                row_copy["Status"] = "Closed"
-                if not row_copy.get("Exit Time"):
-                    row_copy["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    if (futures_type_for_calc in config['futures_types'] and
+                        isinstance(size_for_calc, (int, float)) and size_for_calc is not None and size_for_calc > 0 and
+                        isinstance(stop_loss_pts_for_calc, (int, float)) and stop_loss_pts_for_calc is not None):
+                        mf = config['futures_types'][futures_type_for_calc]['mf']
+                        calculated_risk_dollars = size_for_calc * stop_loss_pts_for_calc * mf
+                        row_copy["Risk ($)"] = round(calculated_risk_dollars, 2)
+                    else:
+                        row_copy["Risk ($)"] = None
+                    
+                    if (current_points_realized_for_calc not in [None, ''] and
+                        futures_type_for_calc in config['futures_types'] and
+                        isinstance(size_for_calc, (int, float)) and size_for_calc is not None and size_for_calc > 0):
+                        try:
+                            points_realized_num_for_calc = float(current_points_realized_for_calc)
+                            mf = config['futures_types'][futures_type_for_calc]['mf']
+                            calculated_pnl = size_for_calc * points_realized_num_for_calc * mf
+                            row_copy["Realized P&L"] = round(calculated_pnl, 2)
+                            pnl_was_calculated_and_is_conclusive = True
+                        except ValueError:
+                            row_copy["Realized P&L"] = None
+                    else:
+                        row_copy["Realized P&L"] = ""
+                    
+                    # Assign default status and entry/exit time for pasted rows if not set
+                    if not row_copy.get("Status"): row_copy["Status"] = "Active"
+                    if not row_copy.get("Entry Time"): row_copy["Entry Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            elif (
-                points_realized_current_num is None
-                and points_realized_previous_num is not None
-            ):
-                row_copy["Status"] = "Active"
-                row_copy["Realized P&L"] = ""
-                row_copy["Exit Time"] = ""
-                pressing_action_in_this_update = "loss"
-
-            should_recalculate_pnl = False
-            if (
-                points_realized_current != points_realized_previous
-                or status_current != status_previous
-                or row_copy.get("Futures Type")
-                != (
-                    previous_table_data[i].get("Futures Type")
-                    if is_existing_row
-                    else None
-                )
-                or row_copy.get("Size")
-                != (previous_table_data[i].get("Size") if is_existing_row else None)
-                or row_copy.get("Stop Loss (pts)")
-                != (
-                    previous_table_data[i].get("Stop Loss (pts)")
-                    if is_existing_row
-                    else None
-                )
-            ):
-                should_recalculate_pnl = True
-
-            elif not is_existing_row and i == len(current_table_data) - 1:
-                should_recalculate_pnl = True
-
-            pnl_was_calculated_and_is_conclusive = False
-            if should_recalculate_pnl:
-                futures_type = row_copy.get("Futures Type")
-                size = row_copy.get("Size")
-                stop_loss_pts = row_copy.get("Stop Loss (pts)")
-                current_points_realized_for_calc = row_copy.get("Points Realized")
-
-                if (
-                    futures_type in config["futures_types"]
-                    and isinstance(size, (int, float))
-                    and size is not None
-                    and size > 0
-                    and isinstance(stop_loss_pts, (int, float))
-                    and stop_loss_pts is not None
-                ):
-                    mf = config["futures_types"][futures_type]["mf"]
-                    calculated_risk_dollars = size * stop_loss_pts * mf
-                    row_copy["Risk ($)"] = round(calculated_risk_dollars, 2)
-                else:
-                    row_copy["Risk ($)"] = None
-
-                if (
-                    current_points_realized_for_calc not in [None, ""]
-                    and futures_type in config["futures_types"]
-                    and isinstance(size, (int, float))
-                    and size is not None
-                    and size > 0
-                ):
+                    # Save the newly pasted row to the database and get its DB ID
                     try:
-                        points_realized_num_for_calc = float(
-                            current_points_realized_for_calc
-                        )
-                        mf = config["futures_types"][futures_type]["mf"]
-                        calculated_pnl = size * points_realized_num_for_calc * mf
-                        row_copy["Realized P&L"] = round(calculated_pnl, 2)
-                        pnl_was_calculated_and_is_conclusive = True
-                    except ValueError:
-                        row_copy["Realized P&L"] = None
-                else:
-                    row_copy["Realized P&L"] = ""
+                        new_db_id = db.save_trade_to_db(row_copy)
+                        if new_db_id is not None:
+                            row_copy['id'] = new_db_id # Store DB ID
+                            print(f"New trade {row_copy.get('Trade #')} (pasted) saved to DB with ID {new_db_id}.")
+                        else:
+                            print(f"Failed to get DB ID for pasted trade {row_copy.get('Trade #')}, DB save likely failed.")
+                            # Consider returning initial data or error message
+                    except Exception as e:
+                        print(f"Error saving pasted trade {row_copy.get('Trade #')} to DB: {e}")
+                        pass
 
-            updated_rows_from_table_logic.append(row_copy)
+                else: # It's an existing row that was modified (has an ID, and was in previous_db_id_lookup)
+                    # Apply recalculation and pressing logic, then update DB
+                    status_current = row_copy.get("Status")
+                    points_realized_current = row_copy.get("Points Realized")
+                    
+                    should_recalculate_pnl = False
+                    if (current_row_data.get("Futures Type") != previous_row_data_at_index.get("Futures Type") or
+                        current_row_data.get("Size") != previous_row_data_at_index.get("Size") or
+                        current_row_data.get("Stop Loss (pts)") != previous_row_data_at_index.get("Stop Loss (pts)") or
+                        current_row_data.get("Points Realized") != previous_row_data_at_index.get("Points Realized") or
+                        current_row_data.get("Status") != previous_row_data_at_index.get("Status")): # Corrected: Removed typo
+                        should_recalculate_pnl = True
+                    
+                    pnl_was_calculated_and_is_conclusive = False
+                    if should_recalculate_pnl:
+                        futures_type = row_copy.get("Futures Type")
+                        size = row_copy.get("Size")
+                        stop_loss_pts = row_copy.get("Stop Loss (pts)")
+                        current_points_realized_for_calc = row_copy.get("Points Realized")
 
-            if (
-                pnl_was_calculated_and_is_conclusive
-                and row_copy.get("Status") == "Closed"
-            ):
-                final_pnl_for_pressing_eval = safe_float(row_copy.get("Realized P&L"))
+                        if (futures_type in config['futures_types'] and
+                            isinstance(size, (int, float)) and size is not None and size > 0 and
+                            isinstance(stop_loss_pts, (int, float)) and stop_loss_pts is not None):
+                            mf = config['futures_types'][futures_type]['mf']
+                            calculated_risk_dollars = size * stop_loss_pts * mf
+                            row_copy["Risk ($)"] = round(calculated_risk_dollars, 2)
+                        else:
+                            row_copy["Risk ($)"] = None
+                        
+                        if (current_points_realized_for_calc not in [None, ''] and
+                            futures_type in config['futures_types'] and
+                            isinstance(size, (int, float)) and size is not None and size > 0):
+                            try:
+                                points_realized_num_for_calc = float(current_points_realized_for_calc)
+                                mf = config['futures_types'][futures_type]['mf']
+                                calculated_pnl = size * points_realized_num_for_calc * mf
+                                row_copy["Realized P&L"] = round(calculated_pnl, 2)
+                                pnl_was_calculated_and_is_conclusive = True
+                            except ValueError:
+                                row_copy["Realized P&L"] = None
+                        else:
+                            row_copy["Realized P&L"] = ""
+                    
+                    # Update Exit Time and Status based on Pts Realized change
+                    if (points_realized_current not in [None, ''] and status_current != "Closed"):
+                         row_copy["Status"] = "Closed"
+                         if not row_copy.get("Exit Time"):
+                             row_copy["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    elif (points_realized_current is None and points_realized_previous is not None and status_current != "Active"):
+                         row_copy["Status"] = "Active"
+                         row_copy["Realized P&L"] = ""
+                         row_copy["Exit Time"] = ""
+                         new_pressing_index = 0
+                         pressing_action_in_this_update = 'loss'
 
-                if final_pnl_for_pressing_eval is not None:
-                    if final_pnl_for_pressing_eval > 0:
-                        pressing_action_in_this_update = "win"
-                    elif final_pnl_for_pressing_eval <= 0:
-                        pressing_action_in_this_update = "loss"
+                    # Update in DB (using the 'id' of the row)
+                    try:
+                        db.update_trade_in_db(row_copy['id'], row_copy)
+                        print(f"Trade with DB ID {row_copy.get('id')} updated in DB (from modification).")
+                    except Exception as e:
+                        print(f"Error updating trade with DB ID {row_copy.get('id')} in DB (from modification): {e}")
 
-        updated_rows = updated_rows_from_table_logic
-
-        pressing_sequence_full = config.get(
-            "pressing_sequence_multipliers", [1, 2, 1.5, 3]
-        )
+                    # Evaluate pressing roadmap for this modified row if conclusive
+                    if pnl_was_calculated_and_is_conclusive and row_copy.get("Status") == "Closed":
+                        final_pnl_for_pressing_eval = safe_float(row_copy.get("Realized P&L"))
+                        if final_pnl_for_pressing_eval is not None:
+                            if final_pnl_for_pressing_eval > 0:
+                                pressing_action_in_this_update = 'win'
+                            elif final_pnl_for_pressing_eval <= 0:
+                                pressing_action_in_this_update = 'loss'
+                    
+                updated_rows[i] = row_copy # Ensure updated row_copy is in the list to be returned
+            
+        # Determine final pressing index after iterating through all potential row changes
+        pressing_sequence_full = config.get("pressing_sequence_multipliers", [1, 2, 1.5, 3])
         max_pressing_index_full = len(pressing_sequence_full) - 1
 
-        if pressing_action_in_this_update == "win":
+        if pressing_action_in_this_update == 'win':
             if current_pressing_index == max_pressing_index_full:
                 new_pressing_index = 0
             else:
                 new_pressing_index = current_pressing_index + 1
-        elif pressing_action_in_this_update == "loss":
+        elif pressing_action_in_this_update == 'loss':
             new_pressing_index = 0
-
+            
     return [
-        updated_rows,
+        updated_rows, # This is the final state of the DataTable
         new_pressing_index,
+        dash.no_update, # These output values are only for 'Add Trade' branch
         dash.no_update,
         dash.no_update,
         dash.no_update,
         dash.no_update,
-        dash.no_update,
-        dash.no_update,
+        dash.no_update
     ]
+
+# Other callbacks (Cumulative P&L, KPIs, P&L Breakdown, etc.) in pages/daily_helper.py
+# update_cumulative_pnl_chart
+# update_kpis
+# update_pnl_breakdown_charts
+# update_available_risk_gauge
+# update_pnl_progress_bar
+# update_trades_progress_bar
+# update_pressing_roadmap_visual
+
+# These analytics callbacks should filter by 'date-picker-single' (for daily data)
+# Most of them already do, or can be adapted easily.
 
 
 # Callback for Available Risk Gauge
