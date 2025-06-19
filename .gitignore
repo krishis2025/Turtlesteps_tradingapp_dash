@@ -1,0 +1,10 @@
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Other common ignore patterns for Python projects
+__pycache__/
+.ipynb_checkpoints/ #if using Jupyter notebooks
+*.log
+*.pyc
