@@ -6,6 +6,9 @@ from dash import dcc, html, dash_table
 import pandas as pd
 import sys
 import os
+from datetime import datetime
+import json
+import base64
 
 # Add 'utils' to Python path so you can import 'database'
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'utils'))
@@ -23,12 +26,36 @@ dash.register_page(
 # --- Layout for the Historical Data Page ---
 layout = html.Div([
     html.H2("All Historical Trades", style={'textAlign': 'center', 'marginBottom': '20px'}),
-    
+    # Button to load all trades from the database
+    # This button will trigger a callback to load data into the DataTable
+    # NEW: Add Export JSON Button next to Load All Trades button
     html.Div([
         html.Button("Load All Trades from Database", id="load-all-trades-button", n_clicks=0,
                     style={'marginBottom': '10px', 'padding': '10px 20px', 'fontSize': '16px', 'cursor': 'pointer'}),
+        html.Button("Export All Trades (JSON)", id="export-json-button", n_clicks=0,
+                    style={'marginBottom': '10px', 'padding': '10px 20px', 'fontSize': '16px', 'cursor': 'pointer', 'marginLeft': '10px'}),
+        
+        # NEW: Upload component for importing JSON
+        dcc.Upload(
+            id='upload-historical-json', # Unique ID for this upload component
+            children=html.Div([
+                #'Drag and Drop or ',
+                html.A('Upload to Database (JSON)', id='upload-historical-json-link') # User-friendly text
+            ]),
+            style={
+                'width': '280px', 'height': '40px', 'lineHeight': '40px',
+                'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
+                'textAlign': 'center', 'margin': '10px 0 10px 10px', 'cursor': 'pointer',
+                'display': 'inline-block', 'verticalAlign': 'middle'
+            },
+            multiple=False # Allow only single file upload
+        ),
         html.Div(id='load-db-output-message', style={'marginTop': '10px', 'textAlign': 'center'}) # Message area
-    ], style={'textAlign': 'left', 'marginBottom': '20px'}), # Left-aligned button
+    ], style={'textAlign': 'left', 'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap'}), # Added display:flex and flexWrap for alignment
+
+    # You also need a dcc.Download component in the layout for this.
+    # Locate the end of the layout = html.Div([...]) in historical_data.py
+    # Add dcc.Download(id="download-historical-json") near the end, e.g., right before the closing ])   
 
     # DataTable to display historical data
     html.Div([
@@ -65,18 +92,22 @@ layout = html.Div([
             style_table={'overflowX': 'auto'} # Allow table to scroll horizontally if needed
         )
     ], style={'width': '95%', 'margin': '0 auto'}),
+    # NEW: Download component for JSON export
+    dcc.Download(id="download-historical-json"), 
     # NEW: Confirmation Dialog and Store for Deletion
     dcc.ConfirmDialog(
         id='confirm-delete-dialog',
         message='Are you sure you want to permanently delete this trade from the database?',
     ),
     dcc.Store(id='trade-id-to-delete', data=None), # To store the ID of the row pending deletion
-    html.Div(id='delete-confirmation-message', style={'marginTop': '10px', 'textAlign': 'center', 'fontWeight': 'bold'}) # Feedback message
+    html.Div(id='delete-confirmation-message', style={'marginTop': '10px', 'textAlign': 'center', 'fontWeight': 'bold'}) # Feedback message    
 ])
 
 
 # --- Callbacks for the Historical Data Page ---
-
+##########################################################################
+# Load All Trades from Database into DataTable callback
+################################################################
 @dash.callback(
     Output('historical-trades-table', 'data'),
     Output('load-db-output-message', 'children'),
@@ -88,12 +119,106 @@ def load_all_trades_into_table(n_clicks):
         try:
             db.initialize_db() # Ensure DB is initialized before fetching
             all_trades = db.fetch_all_trades_from_db()
-            message = f"Loaded {len(all_trades)} trades from database."
-            return all_trades, html.Div(message, style={'color': 'green'})
+            db_name, table_name = db.get_database_info() # NEW: Get database info
+            message = html.Div([ # NEW: Use html.Div to format message with multiple lines/spans
+                html.P(f"Loaded {len(all_trades)} trades from database '{db_name}' table '{table_name}'.", style={'color': 'green'}),
+                html.P("Table is editable and changes are synced to DB.", style={'color': 'gray', 'fontSize': '12px'})
+            ])
+            return all_trades, message
         except Exception as e:
-            message = f"Error loading trades from database: {e}"
-            return [], html.Div(message, style={'color': 'red'})
+            db_name, table_name = db.get_database_info() # Still try to get info for error message
+            message = html.Div([
+                html.P(f"Error loading trades from database '{db_name}' table '{table_name}': {e}", style={'color': 'red'}),
+                html.P("Please ensure database file exists and is accessible.", style={'color': 'gray', 'fontSize': '12px'})
+            ])
+            return [], message
     return dash.no_update, ""
+
+########################################################################
+# NEW CALLBACK: For Export All Trades (JSON) Button
+# This callback exports all historical trades to a JSON file when the button is clicked.
+########################################################################
+
+@dash.callback(
+    Output("download-historical-json", "data"),
+    Input("export-json-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+def export_all_trades_json(n_clicks):
+    if n_clicks:
+        try:
+            db_name, table_name = db.get_database_info()
+            all_trades = db.fetch_all_trades_from_db() # Fetch all data
+            
+            if not all_trades:
+                # Optionally return a notification if there's no data to export
+                return dash.no_update # Or send a dummy file indicating no data
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"allData_{db_name.replace('.db', '')}_{timestamp}.json"
+            
+            # Convert list of dicts directly to JSON string
+            json_string = json.dumps(all_trades, indent=2) # indent for readability
+
+            return dcc.send_string(json_string, filename)
+        except Exception as e:
+            print(f"Error exporting trades to JSON: {e}")
+            # In a real app, you might output an error message to the page
+            return dash.no_update
+    return dash.no_update
+
+########################################################################
+# NEW CALLBACK: For Importing Trades from JSON File via Upload
+##################################################################
+
+# REPLACE its entire content with this:
+@dash.callback(
+    Output('historical-trades-table', 'data', allow_duplicate=True), # Output to refresh the table
+    Output('load-db-output-message', 'children', allow_duplicate=True), # Message for import status
+    Input('upload-historical-json', 'contents'), # Trigger when a file is uploaded
+    State('upload-historical-json', 'filename'), # Get the filename
+    prevent_initial_call=True
+)
+def import_trades_json(contents, filename):
+    if contents is not None:
+        content_type, content_string = contents.split(',')
+        decoded_content = base64.b64decode(content_string)
+
+        try:
+            if filename and filename.endswith('.json'):
+                loaded_data = json.loads(decoded_content.decode('utf-8'))
+                
+                if not isinstance(loaded_data, list):
+                    return dash.no_update, html.Div("Error: Imported file is not a valid list of trades.", style={'color': 'red'})
+
+                imported_count = 0
+                error_count = 0
+                for row_data in loaded_data:
+                    # NEW: Use upsert_trade_to_db to insert new records or modify existing ones
+                    # We pass the 'id' if it exists in row_data, to allow updates
+                    upserted_id = db.upsert_trade_to_db(row_data) 
+                    if upserted_id is not None:
+                        imported_count += 1
+                        # Update the 'id' in row_data in case it was a new insert (for table refresh)
+                        row_data['id'] = upserted_id 
+                    else:
+                        error_count += 1
+                
+                # After saving all, fetch all data from DB to refresh the table with current state
+                refreshed_data = db.fetch_all_trades_from_db()
+                message_text = f"Successfully imported {imported_count} trades from '{filename}'."
+                if error_count > 0:
+                    message_text += f" ({error_count} trades failed to import)."
+                
+                return refreshed_data, html.Div(message_text, style={'color': 'green' if error_count == 0 else 'orange'})
+            else:
+                return dash.no_update, html.Div("Error: Please upload a .json file.", style={'color': 'red'})
+        except json.JSONDecodeError:
+            return dash.no_update, html.Div("Error: Invalid JSON file content.", style={'color': 'red'})
+        except Exception as e:
+            print(f"Error importing trades from JSON file {filename}: {e}")
+            return dash.no_update, html.Div(f"Error processing file: {e}", style={'color': 'red'})
+    return dash.no_update, dash.no_update
 
 ########################################################################
 # This callback updates the SQLlite database when edits or deletions are made in the DataTable.

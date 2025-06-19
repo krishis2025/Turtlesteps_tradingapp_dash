@@ -56,7 +56,8 @@ try:
     # Fetch trades for today's date from DB
     today_date = datetime.now().date()
     initial_data = db.fetch_trades_by_date(today_date)
-    print(f"Loaded {len(initial_data)} trades for {today_date} from DB for daily helper.")
+    db_name, table_name = db.get_database_info()
+    print(f"Loaded {len(initial_data)} trades for {today_date} from DB '{db_name}' table '{table_name}'.")
 except Exception as e:
     print(f"Error loading today's data from DB for daily helper: {e}")
     # Initial data remains empty if there's an error
@@ -772,8 +773,9 @@ def update_pnl_breakdown_charts(rows, selected_category):
 
     return html.Div(charts_to_display)
 
-
+#####################################################################
 # COMBINED CALLBACK: Handles all table and pressing index updates
+#####################################################################
 # Locate this: @dash.callback(Output('trades-table', 'data'), ...)
 # REPLACE its entire content with this:
 
@@ -879,13 +881,15 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
                 new_db_id = db.save_trade_to_db(new_row)
                 if new_db_id is not None:
                     new_row['id'] = new_db_id # Store the DB ID in the DataTable row (hidden column)
-                    print(f"New trade {new_row.get('Trade #')} added to DB with ID {new_db_id}.")
+                    db_name, table_name = db.get_database_info()
+                    print(f"New trade {new_row.get('Trade #')} added to DB '{db_name}' table '{table_name}' with ID {new_db_id}.")
                 else:
-                    print(f"Failed to get DB ID for trade {new_row.get('Trade #')}, DB save likely failed.")
+                    db_name, table_name = db.get_database_info()
+                    print(f"Error saving new trade {new_row.get('Trade #')} to DB '{db_name}' table '{table_name}': {e}")
                     updated_rows.pop() # Remove from DataTable if DB save truly failed
             except Exception as e:
-                print(f"Error saving new trade {new_row.get('Trade #')} to DB: {e}")
-                updated_rows.pop() # Remove from DataTable if an exception occurred
+                db_name, table_name = db.get_database_info()
+                print(f"Error saving new trade {new_row.get('Trade #')} to DB '{db_name}' table '{table_name}': {e}")
             
             # Return all outputs, including reset values for input fields
             return [
@@ -918,9 +922,11 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
             for db_id in deleted_db_ids:
                 try:
                     db.delete_trade_from_db(db_id) # Delete from SQLite using internal DB ID
-                    print(f"Trade with DB ID {db_id} deleted from DB.")
+                    db_name, table_name = db.get_database_info()
+                    print(f"Trade with DB ID {db_id} deleted from DB '{db_name}' table '{table_name}'.")
                 except Exception as e:
-                    print(f"Error deleting trade with DB ID {db_id} from DB: {e}")
+                    db_name, table_name = db.get_database_info()
+                    print(f"Error deleting trade with DB ID {db_id} from DB '{db_name}' table '{table_name}': {e}")
             
             # If any rows were deleted, reset pressing index
             if deleted_db_ids:
@@ -998,12 +1004,15 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
                         new_db_id = db.save_trade_to_db(row_copy)
                         if new_db_id is not None:
                             row_copy['id'] = new_db_id # Store DB ID
-                            print(f"New trade {row_copy.get('Trade #')} (pasted) saved to DB with ID {new_db_id}.")
+                            db_name, table_name = db.get_database_info()
+                            print(f"New trade {row_copy.get('Trade #')} (pasted) saved to DB '{db_name}' table '{table_name}' with ID {new_db_id}.")
                         else:
+                            db_name, table_name = db.get_database_info()
                             print(f"Failed to get DB ID for pasted trade {row_copy.get('Trade #')}, DB save likely failed.")
                             # Consider returning initial data or error message
                     except Exception as e:
-                        print(f"Error saving pasted trade {row_copy.get('Trade #')} to DB: {e}")
+                        db_name, table_name = db.get_database_info()
+                        print(f"Error saving pasted trade {row_copy.get('Trade #')} to DB '{db_name}' table '{table_name}': {e}")
                         pass
 
                 else: # It's an existing row that was modified (has an ID, and was in previous_db_id_lookup)
@@ -1064,9 +1073,11 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
                     # Update in DB (using the 'id' of the row)
                     try:
                         db.update_trade_in_db(row_copy['id'], row_copy)
-                        print(f"Trade with DB ID {row_copy.get('id')} updated in DB (from modification).")
+                        db_name, table_name = db.get_database_info()
+                        print(f"Trade with DB ID {row_copy.get('id')} updated in DB '{db_name}' table '{table_name}' (from modification).")
                     except Exception as e:
-                        print(f"Error updating trade with DB ID {row_copy.get('id')} in DB (from modification): {e}")
+                        db_name, table_name = db.get_database_info()
+                        print(f"Error updating trade with DB ID {row_copy.get('id')} in DB '{db_name}' table '{table_name}' (from modification): {e}")
 
                     # Evaluate pressing roadmap for this modified row if conclusive
                     if pnl_was_calculated_and_is_conclusive and row_copy.get("Status") == "Closed":
@@ -1101,6 +1112,32 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
         dash.no_update,
         dash.no_update
     ]
+
+#####################################################################
+# CALLBACK: Update trades-table data based on DatePickerSingle selection
+#####################################################################
+@dash.callback(
+    Output('trades-table', 'data', allow_duplicate=True), # Output to the DataTable
+    Input('date-picker-single', 'date'), # Trigger when date picker value changes
+    prevent_initial_call=True
+)
+def update_daily_table_from_date_picker(selected_date):
+    if selected_date is None:
+        # If date is cleared, return an empty table or no_update
+        return [] # Empty table if no date selected
+    
+    try:
+        # Fetch trades for the selected date
+        selected_datetime_date = pd.to_datetime(selected_date).date() # Ensure it's a date object
+        trades_for_selected_date = db.fetch_trades_by_date(selected_datetime_date)
+        
+        db_name, table_name = db.get_database_info()
+        print(f"Loaded {len(trades_for_selected_date)} trades for {selected_datetime_date} from DB '{db_name}' table '{table_name}' via DatePicker.")
+        
+        return trades_for_selected_date
+    except Exception as e:
+        print(f"Error updating table from DatePicker for date {selected_date}: {e}")
+        return [] # Return empty list on error
 
 # Other callbacks (Cumulative P&L, KPIs, P&L Breakdown, etc.) in pages/daily_helper.py
 # update_cumulative_pnl_chart
