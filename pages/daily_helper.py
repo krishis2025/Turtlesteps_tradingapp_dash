@@ -63,12 +63,15 @@ except Exception as e:
     # Initial data remains empty if there's an error
 
 # --- Layout for the Daily Helper Page ---
-layout = html.Div([
-    #html.H2("Trading Dashboard - Daily Helper", style={'textAlign': 'center', 'marginBottom': '20px'}),
+layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
+    html.Div([
+        html.H2("Daily Trade Log", className="page-title")
+    ], style={'display': 'flex', 'justifyContent': 'center', 'width': '100%'}),
+    #html.H2("Daily Logger", className="page-title"), #style={'textAlign': 'center', 'marginBottom': '0px'}),
 
 
-    # Main Dashboard Content (pulled out from Home tab, now directly in app.layout)
-    html.Div(id="home-tab-content-wrapper", style={'padding': '20px', 'minHeight': '800px'}, children=[
+    # Main Dashboard Content (pulled out from Home tab, now directly in app.layout)    
+    html.Div(id="home-tab-content-wrapper", style={'minHeight': '800px', 'padding': '0px', 'backgroundColor': 'transparent', 'width': '100%'}, children=[
         # NEW: Date Picker for daily metrics
         html.Div([
             html.Label("View Data For:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
@@ -85,22 +88,22 @@ layout = html.Div([
         html.Div([
             # Column 1: Available Risk Gauge
             html.Div([
-                html.H3("Available Risk", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                #html.H3("Available Risk", className="gauge-title"),
                 dcc.Graph(id='available-risk-gauge', config={'displayModeBar': False},
-                          style={'height': '180px'}) 
-            ], style={'flex': '1 1 350px', 'paddingRight': '10px', 'boxSizing': 'border-box'}), # Changed flex-basis to 350px, added boxSizing
+                          style={'height': '180px', 'width': '100%', 'backgroundColor': 'transparent'}), 
+            ], style={'flex': '1 1 350px', 'paddingRight': '10px', 'boxSizing': 'border-box', 'justifyContent': 'center'}), # Changed flex-basis to 350px, added boxSizing
 
             # Column 2: Stacked Progress Bars and Placeholder
             html.Div([
                 # Row 1: Realized P&L Progress Bar
                 html.Div([
-                    html.H3("Realized P&L Progress", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                    html.H3("Realized P&L Progress", className="gauge-title"), #style={'textAlign': 'center'}),
                     html.Div(id='pnl-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
-                ], style={'width': '100%', 'height': 'auto', 'maxWidth': '100%', 'boxSizing': 'border-box', 'marginBottom': '15px'}), # Added maxWidth: '100%', boxSizing
+                ], style={'width': '100%', 'height': 'auto', 'maxWidth': '100%', 'boxSizing': 'border-box', 'marginBottom': '25px', 'margintop': '100px'}), # Added maxWidth: '100%', boxSizing
 
                 # Row 2: Trades per Day Progress Bar
                 html.Div([
-                    html.H3("Trades per Day", style={'textAlign': 'center', 'marginTop': '0', 'marginBottom': '5px'}),
+                    html.H3("Trades per Day", className="gauge-title"), #style={'textAlign': 'center'}),
                     html.Div(id='trades-progress-bar-container', style={'width': '100%', 'height': 'auto'}),
                 ], style={'width': '100%', 'height': 'auto', 'maxWidth': '100%', 'boxSizing': 'border-box', 'marginBottom': '30px'}), # Added maxWidth: '100%', boxSizing
 
@@ -145,7 +148,7 @@ layout = html.Div([
                     html.Div(id='pressing-roadmap-container', style={'width': '100%', 'height': 'auto', 'display': 'flex', 'justifyContent': 'center', 'alignItems': 'center', 'flexWrap': 'wrap', 'padding': '10px 0'}),
                 ], style={'width': '100%', 'height': 'auto', 'maxWidth': '100%', 'boxSizing': 'border-box', 'marginBottom': '0px'}), # Added maxWidth: '100%', boxSizing
 
-            ], style={'flex': '1 1 350px', 'paddingLeft': '10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'}), # Changed flex-basis to 350px, added boxSizing
+            ], style={'flex': '1 1 350px', 'paddingLeft': '10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-around'}),
         ], style={
             'display': 'flex',
             'flexWrap': 'wrap', # CRUCIAL: Confirmed to be here
@@ -153,14 +156,15 @@ layout = html.Div([
             'alignItems': 'flex-start',
             'width': '100%',
             'marginBottom': '20px',
+            'padding': '20px',
             'boxSizing': 'border-box' # Ensures padding/border are included in the width
         }),
 
         # Export to Excel Button
         html.Div([
             html.Button("Export to Excel", id="export-excel-button", n_clicks=0,
-                        style={'marginBottom': '10px', 'padding': '8px 15px', 'fontSize': '14px', 'cursor': 'pointer'})
-        ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}),
+                        className='dash-button', style={'marginBottom': '10px'}),
+        ], style={'width': '95%', 'margin': '0 auto 20px auto', 'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'justifyContent': 'flex-start', 'padding': '0 20px'}),
 
         # DataTable
         html.Div([
@@ -190,6 +194,10 @@ layout = html.Div([
                 data=initial_data,
                 editable=True,
                 row_deletable=True,
+                style_table={
+                    'overflowX': 'auto', # Allows horizontal scrolling within the table if content overflows
+                    'minWidth': '100%',  # Ensures the table tries to take full width available
+                },
                 dropdown={
                     'Futures Type': {
                         'options': [{'label': i, 'value': i} for i in config['futures_types'].keys()],
@@ -276,16 +284,33 @@ layout = html.Div([
                     }
                 ],
                 style_cell={
-                    'textAlign': 'center',
-                    'padding': '5px',
-                    'fontFamily': 'sans-serif',
-                    'fontSize': '14px',
-                    'minWidth': 80, 'width': 80, 'maxWidth': 180
+                    'textAlign': 'left', # Keep left alignment for text, center for numbers if needed
+                    'padding': '7px 5px', # Reduced padding for sleek rows
+                    'fontFamily': 'Arial, sans-serif',
+                    'fontSize': '13px', # Consistent font size
+                    'borderBottom': '1px solid #e0e0e0', # Lighter bottom border for horizontal lines
+                    'borderLeft': 'none', # Remove vertical borders
+                    'borderRight': 'none', # Remove vertical borders
+                    'whiteSpace': 'nowrap', # CRUCIAL: Prevents cell content from wrapping (keeps it on one line)
+                    'overflow': 'visible', # ALLOWS content to overflow if needed, for column expansion
+                    'textOverflow': 'clip', # Prevents '...' from appearing, content will just clip or push column
+                    'height': 'auto', # Allow row height to adjust
+                    # min/width/maxWidth for columns are typically better managed in style_cell_conditional
+                    'minWidth': '80px', 'width': 'auto', 'maxWidth': '300px' # Allow width to be auto/expand up to 300px
                 },
                 style_header={
-                    'backgroundColor': 'rgb(230, 230, 230)',
+                    'backgroundColor': '#f8f8f8', # Lighter header background
+                    'color': '#2c3e50', # Darker header text
                     'fontWeight': 'bold',
-                    'textAlign': 'center'
+                    'textAlign': 'left',
+                    'fontSize': '14px', # Consistent font size
+                    'padding': '8px 5px', # Reduced padding for sleek headers
+                    'borderBottom': '2px solid #dde3e9',
+                    'borderLeft': 'none',
+                    'borderRight': 'none',
+                    'whiteSpace': 'nowrap', # CRUCIAL: Prevents header content from wrapping
+                    'overflow': 'visible', # ALLOWS header content to overflow if needed, for column expansion
+                    'textOverflow': 'clip', # Prevents '...' from appearing
                 },
                 css=[{
                     'selector': '.dash-spreadsheet-container .dash-spreadsheet-table',
@@ -301,7 +326,7 @@ layout = html.Div([
                 }
                 ]
             )
-        ], style={'marginTop': '20px', 'marginBottom': '20px', 'width': '95%', 'margin': '0 auto', 'overflowX': 'auto'}), # ADDED overflowX: 'auto'
+        ], style={'marginTop': '20px', 'marginBottom': '20px', 'width': '100%', 'margin': '0 auto', 'overflowX': 'auto', 'padding': '0 20px'}), # Added horizontal padding
 
         # Section for Input Fields (below table)
         html.Div([
@@ -409,13 +434,14 @@ layout = html.Div([
 
             ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px', 'boxSizing': 'border-box'}), # ADDED boxSizing
 
-        ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px'}),
+        ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px', 'boxSizing': 'border-box'}), # Added boxSizing for safety
          
 
         # Add Trade button (Moved here, and is now the only one)
         html.Div([
-            html.Button('Add Trade', id='add-trade-button', n_clicks=0, style={'marginBottom': '20px', 'padding': '12px 25px', 'fontSize': '18px', 'cursor': 'pointer'})
-        ], style={'textAlign': 'left', 'width': '95%', 'margin': '0 auto'}),
+            html.Button('Add Trade', id='add-trade-button', n_clicks=0, 
+                        className='dash-button', style={'marginBottom': '20px'}),
+        ], style={'textAlign': 'left', 'width': '100%', 'margin': '0 auto', 'padding': '20px'}), # Added horizontal padding
     ]), 
 
     # NEW: Main Tabs for Analytical Views (elevated from 'inner-analytical-tabs')
@@ -1219,7 +1245,15 @@ def update_available_risk_gauge(rows, selected_date):
             mode="gauge+number",
             value=available_risk,
             domain={"x": [0, 1], "y": [0, 1]},
-            title={"text": "Available Risk", "font": {"size": 16}},
+            #title={"text": "Available Risk", "font": {"size": 16}},
+            title={
+            "text": "Available Risk",
+                "font": {
+                    "family": "Segoe UI, sans-serif",
+                    "size": 18,
+                    "color": "#2c3e50"
+                }
+            },
             gauge={
                 "axis": {
                     "range": [0, max_range],
@@ -1239,7 +1273,8 @@ def update_available_risk_gauge(rows, selected_date):
     )
     fig.update_layout(
         margin=dict(l=10, r=10, t=30, b=10),
-        paper_bgcolor="white",
+        #paper_bgcolor="white",
+        paper_bgcolor="#f0f2f5", # CHANGED to match page background
         font={"color": "black", "family": "Arial"},
     )
     return fig
@@ -1341,6 +1376,7 @@ def update_pnl_progress_bar(rows, selected_date):
                 else None
             ),
         ],
+        className='progress-bar-container' 
     )
 
     target_display_div = html.Div(
@@ -1430,6 +1466,7 @@ def update_trades_progress_bar(rows, selected_date):
                 children=[display_text],
             )
         ],
+        className='progress-bar-container' 
     )
 
 

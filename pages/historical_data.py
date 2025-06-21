@@ -30,10 +30,11 @@ layout = html.Div([
     # This button will trigger a callback to load data into the DataTable
     # NEW: Add Export JSON Button next to Load All Trades button
     html.Div([
-        html.Button("Load All Trades from Database", id="load-all-trades-button", n_clicks=0,
-                    style={'marginBottom': '10px', 'padding': '10px 20px', 'fontSize': '16px', 'cursor': 'pointer'}),
-        html.Button("Export All Trades (JSON)", id="export-json-button", n_clicks=0,
-                    style={'marginBottom': '10px', 'padding': '10px 20px', 'fontSize': '16px', 'cursor': 'pointer', 'marginLeft': '10px'}),
+        html.Button("Load all", id="load-all-trades-button", n_clicks=0,
+                    className='dash-button', style={'marginBottom': '10px'}), # Applied class, removed padding/fontSize
+        html.Button("Export", id="export-json-button", n_clicks=0,
+                    className='dash-button', style={'marginBottom': '10px', 'marginLeft': '10px'}), # Applied class, removed padding/fontSize
+        
         
         # NEW: Upload component for importing JSON
         dcc.Upload(
@@ -50,8 +51,8 @@ layout = html.Div([
             },
             multiple=False # Allow only single file upload
         ),
-        html.Div(id='load-db-output-message', style={'marginTop': '10px', 'textAlign': 'center'}) # Message area
-    ], style={'textAlign': 'left', 'marginBottom': '20px', 'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap'}), # Added display:flex and flexWrap for alignment
+        html.Div(id='load-db-output-message', style={'marginTop': '10px', 'textAlign': 'left', 'flexBasis': '100%'}) # Message area
+    ], style={'width': '95%', 'margin': '0 auto 20px auto', 'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'justifyContent': 'flex-start'}), # Added display:flex and flexWrap for alignment
 
     # You also need a dcc.Download component in the layout for this.
     # Locate the end of the layout = html.Div([...]) in historical_data.py

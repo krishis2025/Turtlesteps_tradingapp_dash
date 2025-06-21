@@ -13,7 +13,7 @@ app.config.suppress_callback_exceptions = True
 # Define the main layout of the application
 # This includes the sidebar and the area where page content will be displayed
 app.layout = html.Div([
-    html.H2("Trading Dashboard", style={'textAlign': 'center', 'marginBottom': '20px'}), # Corrected: H2 title
+    #html.H2("Trading Dashboard", style={'textAlign': 'center', 'marginBottom': '20px'}), # Corrected: H2 title   
 
     # dcc.Location component is crucial for multi-page apps
     # It reads the current URL and allows callbacks (implicitly handled by dash.page_registry)
@@ -49,14 +49,16 @@ app.layout = html.Div([
         html.Div([
             dash.page_container # This is where the content of each registered page will be displayed
         ], style={
-            'marginLeft': '220px',
-            'padding': '20px',
+            'paddingLeft': '200px', # THIS WAS THE GAP-CAUSING LINE
+            'paddingRight': '10px',
+            'paddingTop': '10px',
+            'paddingBottom': '20px',
             'flexGrow': 1,
-            'flexShrink': 0, # Allow it to shrink
-            'flexBasis': 'auto', # Base size from content
-            'width': 'calc(100% - 220px)', # Explicitly calculate width based on remaining space
-            'boxSizing': 'border-box', # Ensure padding is included in width
-            'overflowX': 'hidden' # Crucial - hides any remaining overflow within this container (Use with caution, but necessary for page scroll)
+            'flexShrink': 0,
+            'flexBasis': 'auto',
+            'width': '100%',
+            'boxSizing': 'border-box',
+            'overflowX': 'hidden'
         }),
     ], style={'display': 'flex'}), # Flex container for sidebar and page content
 
