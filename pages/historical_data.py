@@ -30,7 +30,7 @@ layout = html.Div([
     # This button will trigger a callback to load data into the DataTable
     # NEW: Add Export JSON Button next to Load All Trades button
     html.Div([
-        html.Button("Load all", id="load-all-trades-button", n_clicks=0,
+        html.Button("Refresh", id="load-all-trades-button", n_clicks=0,
                     className='dash-button', style={'marginBottom': '10px'}), # Applied class, removed padding/fontSize
         html.Button("Export", id="export-json-button", n_clicks=0,
                     className='dash-button', style={'marginBottom': '10px', 'marginLeft': '10px'}), # Applied class, removed padding/fontSize
@@ -53,35 +53,180 @@ layout = html.Div([
         ),
         html.Div(id='load-db-output-message', style={'marginTop': '10px', 'textAlign': 'left', 'flexBasis': '100%'}) # Message area
     ], style={'width': '95%', 'margin': '0 auto 20px auto', 'display': 'flex', 'alignItems': 'center', 'flexWrap': 'wrap', 'justifyContent': 'flex-start'}), # Added display:flex and flexWrap for alignment
+    
+    ##############################################
+    #Filter Historical data Html wrapper
+    ##############################################
+    html.Div([
+        html.H3("Filter Historical Data", style={'textAlign': 'center', 'width': '100%', 'marginBottom': '25px'}), # Ensure it spans full width and more margin
+        
+        # Date Range Picker
+        html.Div([
+            html.Label("Date Range:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
+            dcc.DatePickerRange(
+                id='historical-date-range-picker',
+                start_date_placeholder_text="Start Date",
+                end_date_placeholder_text="End Date",
+                display_format='MM-DD-YYYY',
+                month_format='MMMM Y',
+                calendar_orientation='horizontal',
+                updatemode='bothdates',
+                clearable=True, # ADDED: Allows clearing the selected date range
+                style={'marginRight': '15px'}
+            ),
+        ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'flexWrap': 'wrap', 'marginRight': '20px'}), # Increased margin-bottom and added right margin
 
-    # You also need a dcc.Download component in the layout for this.
-    # Locate the end of the layout = html.Div([...]) in historical_data.py
-    # Add dcc.Download(id="download-historical-json") near the end, e.g., right before the closing ])   
+        # Categorical Dropdowns      
+        html.Div([ # Container for all categorical filters - now each dropdown has its own wrapper
+            # Futures Type
+            html.Div([
+                html.Label("Futures Type:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-futures-type',
+                    options=[], # Options loaded by callback
+                    placeholder='All', clearable=True, style={'width': '150px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}), # Consistent spacing
 
+            # Status
+            html.Div([
+                html.Label("Status:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-status',
+                    options=[{'label': 'Active', 'value': 'Active'}, {'label': 'Closed', 'value': 'Closed'}],
+                    placeholder='All', clearable=True, style={'width': '150px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}),
+
+            # Trade Came To Me
+            html.Div([
+                html.Label("Trade Came To Me:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-trade-came',
+                    options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}],
+                    placeholder='All', clearable=True, style={'width': '150px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}),
+
+            # With Value
+            html.Div([
+                html.Label("With Value:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-with-value',
+                    options=[{'label': 'Yes', 'value': 'Yes'}, {'label': 'No', 'value': 'No'}],
+                    placeholder='All', clearable=True, style={'width': '150px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}),
+
+            # Score
+            html.Div([
+                html.Label("Score:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-score',
+                    options=[{'label': 'A+', 'value': 'A+'}, {'label': 'B', 'value': 'B'}, {'label': 'C', 'value': 'C'}],
+                    placeholder='All', clearable=True, style={'width': '100px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}),
+
+            # Entry Quality
+            html.Div([
+                html.Label("Entry Quality:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-entry-quality',
+                    options=[
+                        {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
+                        {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
+                        {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
+                        {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
+                        {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
+                    ],
+                    placeholder='All', clearable=True, style={'width': '200px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}),
+
+            # Emotional State
+            html.Div([
+                html.Label("Emotional State:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-emotional-state',
+                    options=[
+                        {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
+                        {'label': 'Get back losses', 'value': 'Get back losses'},
+                        {'label': 'FOMO', 'value': 'FOMO'},
+                        {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
+                        {'label': 'Overconfidence', 'value': 'Overconfidence'},
+                        {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
+                        {'label': 'Distracted', 'value': 'Distracted'},
+                    ],
+                    placeholder='All', clearable=True, style={'width': '200px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}),
+
+            # Sizing
+            html.Div([
+                html.Label("Sizing:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='historical-filter-sizing',
+                    options=[{'label': 'Base', 'value': 'Base'}, {'label': 'Increased', 'value': 'Increased'}, {'label': 'Reduced', 'value': 'Reduced'}],
+                    placeholder='All', clearable=True, style={'width': '150px'}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '15px', 'marginRight': '20px'}),
+
+            # Show Columns (already has its own specific styling)
+            html.Div([
+                html.Label("Show Columns:", style={'fontWeight': 'bold', 'marginRight': '5px'}),
+                dcc.Dropdown(
+                    id='column-visibility-filter',
+                    options=[], # Will be populated by a callback
+                    value=[], # Default to showing all initially, will be dynamically set
+                    multi=True, # Allows selecting multiple columns
+                    placeholder='Select columns to show', clearable=False, style={'minWidth': '200px', 'flexGrow': 1}
+                ),
+            ], style={'display': 'flex', 'alignItems': 'center', 'flexGrow': 1}), # Remaining style from before
+
+        ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'flex-start', 'width': '100%'}), # Parent for all filter groups
+    ], style={
+            'width': '95%',
+            'margin': '0 auto 20px auto',
+            'padding': '25px', # Increased padding for more breathing room
+            'backgroundColor': '#ffffff', # White background for the filter block
+            'borderRadius': '8px',
+            'boxShadow': '0 2px 10px rgba(0, 0, 0, 0.08)', # Consistent shadow
+            'display': 'flex', # Added flex to manage internal layout more precisely
+            'flexWrap': 'wrap', # Allow filter groups to wrap
+            'alignItems': 'flex-start', # Align items to the top
+            'justifyContent': 'space-between' # Distribute space between filter groups
+        }), 
+    
+
+    ####################################################################################
+    #Data table to display historical data
+    ##############################################################################
     # DataTable to display historical data
     html.Div([
         dash_table.DataTable(
             id='historical-trades-table', # Unique ID for this table
             columns=[
-                {"name": "DB ID", "id": "id", "type": "numeric", "editable": False},
-                {"name": "Trade #", "id": "Trade #", "type": "numeric", "editable": False},
-                {"name": "Futures Type", "id": "Futures Type", "presentation": "dropdown"},
-                {"name": "Size", "id": "Size", "type": "numeric", "editable": True},
-                {"name": "Stop Loss (pts)", "id": "Stop Loss (pts)", "type": "numeric", "editable": True},
-                {"name": "Risk ($)", "id": "Risk ($)", "type": "numeric", "editable": False},
-                {"name": "Status", "id": "Status", "presentation": "dropdown"},
-                {"name": "Points Realized", "id": "Points Realized", "type": "numeric", "editable": True},
-                {"name": "Realized P&L", "id": "Realized P&L", "type": "numeric", "editable": False, "format": {"specifier": ".2f"}},
-                {"name": "Entry Time", "id": "Entry Time", "editable": False},
-                {"name": "Exit Time", "id": "Exit Time", "editable": True},
-                {"name": "Trade came to me", "id": "Trade came to me", "presentation": "dropdown"},
-                {"name": "With Value", "id": "With Value", "presentation": "dropdown"},
-                {"name": "Score", "id": "Score", "presentation": "dropdown"},
-                {"name": "Entry Quality", "id": "Entry Quality", "presentation": "dropdown"},
-                {"name": "Emotional State", "id": "Emotional State", "presentation": "dropdown"},
-                {"name": "Sizing", "id": "Sizing", "presentation": "dropdown"},
-                {"name": "Notes", "id": "Notes", "type": "text", "editable": True},
+                {"name": "DB ID", "id": "id", "type": "numeric", "editable": False, "hideable": True}, # ADDED hideable: True
+                {"name": "Trade #", "id": "Trade #", "type": "numeric", "editable": False, "hideable": True}, # ADDED hideable: True
+                {"name": "Futures Type", "id": "Futures Type", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Size", "id": "Size", "type": "numeric", "editable": True, "hideable": True}, # ADDED hideable: True
+                {"name": "Stop Loss (pts)", "id": "Stop Loss (pts)", "type": "numeric", "editable": True, "hideable": True}, # ADDED hideable: True
+                {"name": "Risk ($)", "id": "Risk ($)", "type": "numeric", "editable": False, "hideable": True}, # ADDED hideable: True
+                {"name": "Status", "id": "Status", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Points Realized", "id": "Points Realized", "type": "numeric", "editable": True, "hideable": True}, # ADDED hideable: True
+                {"name": "Realized P&L", "id": "Realized P&L", "type": "numeric", "editable": False, "format": {"specifier": ".2f"}, "hideable": True}, # ADDED hideable: True
+                {"name": "Entry Time", "id": "Entry Time", "editable": False, "hideable": True}, # ADDED hideable: True
+                {"name": "Exit Time", "id": "Exit Time", "editable": True, "hideable": True}, # ADDED hideable: True
+                {"name": "Trade came to me", "id": "Trade came to me", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "With Value", "id": "With Value", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Score", "id": "Score", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Entry Quality", "id": "Entry Quality", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Emotional State", "id": "Emotional State", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Sizing", "id": "Sizing", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Notes", "id": "Notes", "type": "text", "editable": True, "hideable": True}, # ADDED hideable: True
             ],
+            
             data=[], # Starts empty, data loaded by callback
             editable=True, # Will allow editing/deleting historical trades directly
             row_deletable=True,
@@ -101,39 +246,60 @@ layout = html.Div([
         message='Are you sure you want to permanently delete this trade from the database?',
     ),
     dcc.Store(id='trade-id-to-delete', data=None), # To store the ID of the row pending deletion
-    html.Div(id='delete-confirmation-message', style={'marginTop': '10px', 'textAlign': 'center', 'fontWeight': 'bold'}) # Feedback message    
-])
+    html.Div(id='delete-confirmation-message', style={'marginTop': '10px', 'textAlign': 'center', 'fontWeight': 'bold'}), # Feedback message  
+        
+    # NEW: Interval for initial data load on page access
+    dcc.Interval(id='historical-load-interval', interval=1000, n_intervals=0, max_intervals=1), # Triggers once after 1 second
+    # NEW: Store to hold all raw historical data after initial load
+    dcc.Store(id='historical-trades-table-data-store', data=[]),    
+])  
 
 
 # --- Callbacks for the Historical Data Page ---
 ##########################################################################
 # Load All Trades from Database into DataTable callback
 ################################################################
+
 @dash.callback(
-    Output('historical-trades-table', 'data'),
+    Output('historical-trades-table-data-store', 'data'), # CHANGED: Output to dcc.Store
     Output('load-db-output-message', 'children'),
     Input('load-all-trades-button', 'n_clicks'),
+    Input('historical-load-interval', 'n_intervals'),
     prevent_initial_call=True
 )
-def load_all_trades_into_table(n_clicks):
-    if n_clicks > 0:
+def load_all_trades_into_table(n_clicks_button, n_intervals_interval):
+    ctx = dash.callback_context
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0] if ctx.triggered else 'initial_load'
+
+    if trigger_id == 'historical-load-interval' or trigger_id == 'load-all-trades-button':
         try:
-            db.initialize_db() # Ensure DB is initialized before fetching
-            all_trades = db.fetch_all_trades_from_db()
-            db_name, table_name = db.get_database_info() # NEW: Get database info
-            message = html.Div([ # NEW: Use html.Div to format message with multiple lines/spans
-                html.P(f"Loaded {len(all_trades)} trades from database '{db_name}' table '{table_name}'.", style={'color': 'green'}),
-                html.P("Table is editable and changes are synced to DB.", style={'color': 'gray', 'fontSize': '12px'})
+            db.initialize_db()
+            all_trades_raw = db.fetch_all_trades_from_db()
+            
+            df_all_trades = pd.DataFrame(all_trades_raw)
+            if not df_all_trades.empty and 'Entry Time' in df_all_trades.columns:
+                df_all_trades['Entry Time'] = pd.to_datetime(df_all_trades['Entry Time'], errors='coerce')
+                df_all_trades = df_all_trades.sort_values(by='Entry Time', ascending=False)
+                all_trades_final = df_all_trades.to_dict('records')
+            else:
+                all_trades_final = []
+
+            db_name, table_name = db.get_database_info()
+            
+            message = html.Div([
+                html.P(f"Loaded {len(all_trades_final)} trades from database '{db_name}' table '{table_name}'.", style={'color': 'green'}),
+                html.P("Table is editable and changes are synced to DB. Use the button to refresh.", style={'color': 'gray', 'fontSize': '12px'})
             ])
-            return all_trades, message
+            return all_trades_final, message # Returns data to store
         except Exception as e:
-            db_name, table_name = db.get_database_info() # Still try to get info for error message
+            db_name, table_name = db.get_database_info()
             message = html.Div([
                 html.P(f"Error loading trades from database '{db_name}' table '{table_name}': {e}", style={'color': 'red'}),
                 html.P("Please ensure database file exists and is accessible.", style={'color': 'gray', 'fontSize': '12px'})
             ])
-            return [], message
+            return [], message # Returns empty data to store on error
     return dash.no_update, ""
+
 
 ########################################################################
 # NEW CALLBACK: For Export All Trades (JSON) Button
@@ -221,25 +387,77 @@ def import_trades_json(contents, filename):
             return dash.no_update, html.Div(f"Error processing file: {e}", style={'color': 'red'})
     return dash.no_update, dash.no_update
 
+###################################################################################
+# NEW CALLBACK: Filter Historical Data Table based on inputs
+#########################################################################
+@dash.callback(
+    Output('historical-trades-table', 'data'), # Output to update the DataTable
+    Output('historical-filter-futures-type', 'options'), # NEW: Output to populate Futures Type dropdown options
+    Input('historical-trades-table-data-store', 'data'), # Get all raw data from the store
+    Input('historical-date-range-picker', 'start_date'),
+    Input('historical-date-range-picker', 'end_date'),
+    Input('historical-filter-futures-type', 'value'),
+    Input('historical-filter-status', 'value'),
+    Input('historical-filter-trade-came', 'value'),
+    Input('historical-filter-with-value', 'value'),
+    Input('historical-filter-score', 'value'),
+    Input('historical-filter-entry-quality', 'value'),
+    Input('historical-filter-emotional-state', 'value'),
+    Input('historical-filter-sizing', 'value'),
+    prevent_initial_call=False # Allow to run on initial load to populate default view
+)
+def filter_historical_data_table(all_historical_data, start_date, end_date, 
+                                 futures_type_val, status_val, trade_came_val, 
+                                 with_value_val, score_val, entry_quality_val, 
+                                 emotional_state_val, sizing_val):
+    if not all_historical_data:
+        # Return empty data and empty options if no historical data is loaded
+        return [], []
+
+    df = pd.DataFrame(all_historical_data)
+
+    # Convert relevant columns to correct dtypes for filtering
+    df['Entry Time'] = pd.to_datetime(df['Entry Time'], errors='coerce')
+    df['Realized P&L'] = pd.to_numeric(df['Realized P&L'], errors='coerce')
+
+    # --- Populate Futures Type Dropdown Options ---
+    futures_type_options = [{'label': i, 'value': i} for i in sorted(df['Futures Type'].dropna().unique())]
+
+    # --- Apply Filters ---
+    df_filtered = df.copy()
+
+    # Date Range Filter
+    if start_date and end_date:
+        start_datetime = pd.to_datetime(start_date).date()
+        end_datetime = pd.to_datetime(end_date).date()
+        df_filtered = df_filtered[(df_filtered['Entry Time'].dt.date >= start_datetime) & (df_filtered['Entry Time'].dt.date <= end_datetime)]
+
+    # Categorical Filters
+    if futures_type_val:
+        df_filtered = df_filtered[df_filtered['Futures Type'] == futures_type_val]
+    if status_val:
+        df_filtered = df_filtered[df_filtered['Status'] == status_val]
+    if trade_came_val:
+        df_filtered = df_filtered[df_filtered['Trade came to me'] == trade_came_val]
+    if with_value_val:
+        df_filtered = df_filtered[df_filtered['With Value'] == with_value_val]
+    if score_val:
+        df_filtered = df_filtered[df_filtered['Score'] == score_val]
+    if entry_quality_val:
+        df_filtered = df_filtered[df_filtered['Entry Quality'] == entry_quality_val]
+    if emotional_state_val:
+        df_filtered = df_filtered[df_filtered['Emotional State'] == emotional_state_val]
+    if sizing_val:
+        df_filtered = df_filtered[df_filtered['Sizing'] == sizing_val]
+
+    # Return filtered data and dropdown options
+    return df_filtered.to_dict('records'), futures_type_options
+
 ########################################################################
 # This callback updates the SQLlite database when edits or deletions are made in the DataTable.
 # Update_historical_db_on_edit_delete callback
 ##############################################################
 
-# Locate this section in pages/historical_data.py:
-# @dash.callback(
-#     Output('load-db-output-message', 'children', allow_duplicate=True),
-#     Output('trade-id-to-delete', 'data'),
-#     Output('confirm-delete-dialog', 'displayed', allow_duplicate=True), # Original output
-#     Input('historical-trades-table', 'data'),
-#     Input('load-all-trades-button', 'n_clicks'),
-#     State('historical-trades-table', 'data_previous'),
-#     prevent_initial_call=True
-# )
-# def update_historical_db_on_edit_delete(...):
-#     ...
-
-# REPLACE its entire content with this:
 @dash.callback(
     Output('load-db-output-message', 'children', allow_duplicate=True),
     Output('trade-id-to-delete', 'data'), # This output sends ID to the dcc.Store
