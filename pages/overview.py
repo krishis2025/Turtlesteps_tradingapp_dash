@@ -138,7 +138,7 @@ layout = html.Div([
             'padding': '10px',
             'boxShadow': '0 2px 5px rgba(0,0,0,0.1)'
         }, children=[
-            html.H3("Trade Origination", style={'textAlign': 'center', 'marginBottom': '0px'}),
+            html.H3("Did Trade Come to you?", style={'textAlign': 'center', 'marginBottom': '0px'}),
             dcc.Graph(id='trade-came-pie-chart', config={'displayModeBar': False}, style={'height': '250px'})
         ]),
 
