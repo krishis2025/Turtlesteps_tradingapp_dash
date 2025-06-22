@@ -178,16 +178,16 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                     {"name": "Size", "id": "Size", "type": "numeric", "editable": True},
                     {"name": "Stop Loss (pts)", "id": "Stop Loss (pts)", "type": "numeric", "editable": True},
                     {"name": "Risk ($)", "id": "Risk ($)", "type": "numeric", "editable": False},
-                    {"name": "Status", "id": "Status", "presentation": "dropdown"},
+                    {"name": "Status", "id": "Status"}, #"presentation": "dropdown"},
                     {"name": "Points Realized", "id": "Points Realized", "type": "numeric", "editable": True},
                     {"name": "Realized P&L", "id": "Realized P&L", "type": "numeric", "editable": False, "format": {"specifier": ".2f"}},
                     {"name": "Entry Time", "id": "Entry Time", "editable": False},
                     {"name": "Exit Time", "id": "Exit Time", "editable": True},
-                    {"name": "Trade came to me", "id": "Trade came to me", "presentation": "dropdown"},
-                    {"name": "With Value", "id": "With Value", "presentation": "dropdown"},
-                    {"name": "Score", "id": "Score", "presentation": "dropdown"},
-                    {"name": "Entry Quality", "id": "Entry Quality", "presentation": "dropdown"},
-                    {"name": "Emotional State", "id": "Emotional State", "presentation": "dropdown"},
+                    {"name": "Trade came to me", "id": "Trade came to me"}, # "presentation": "dropdown"},
+                    {"name": "With Value", "id": "With Value"}, #, "presentation": "dropdown"},
+                    {"name": "Score", "id": "Score"}, #, "presentation": "dropdown"},
+                    {"name": "Entry Quality", "id": "Entry Quality"}, #, "presentation": "dropdown"},
+                    {"name": "Emotional State", "id": "Emotional State"}, #, "presentation": "dropdown"},
                     {"name": "Sizing", "id": "Sizing", "presentation": "dropdown"},
                     {"name": "Notes", "id": "Notes", "type": "text", "editable": True},
                 ],
@@ -204,7 +204,7 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         'clearable': False
                     },
                     'Status': {
-                        'options': [{'label': i, 'value': i} for i in ['Active', 'Closed']],
+                        'options': [{'label': i, 'value': i} for i in ['Active', 'Win', 'Loss']],
                         'clearable': False
                     },
                     'Trade came to me': {
@@ -249,39 +249,48 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         'clearable': False
                     },
                     'Sizing': {
-                        'options': [{'label': i, 'value': i} for i in ['Base', 'Increased', 'Reduced']],
+                        'options': [{'label': i, 'value': i} for i in ['Base', 'Press', 'derisk']],
                         'clearable': False
                     },
-                },
+                },              
                 style_data_conditional=[
+                    # Existing Conditional styling for Risk ($) exceeding daily_risk (applies to whole row)
+                    { # NEW: Center content in 'Status' column
+                        'if': {'column_id': 'Status'},
+                        'textAlign': 'center'
+                    },
                     {
                         'if': {
                             'filter_query': '{Risk ($)} > ' + str(config['daily_risk'])
                         },
-                        'backgroundColor': '#FF4136',
+                        'backgroundColor': '#FF4136', # Red for high risk
                         'color': 'white'
                     },
+                    # NEW: Cell-specific coloring for 'Status' column based on its text content
                     {
                         'if': {
-                            'filter_query': '{Realized P&L} < 0'
+                            'column_id': 'Status', # Target only the Status column
+                            'filter_query': '{Status} = "Win"' # Condition for Win
                         },
-                        'backgroundColor': '#F08080', # LightCoral for loss
-                        'color': 'black'
+                        'backgroundColor': '#E8F5E9', # Very light green for profit (subtler)
+                        'color': '#1B5E20' # Dark green text for contrast
                     },
                     {
                         'if': {
-                            'filter_query': '{Realized P&L} > 0'
+                            'column_id': 'Status', # Target only the Status column
+                            'filter_query': '{Status} = "Loss"' # Condition for Lose
                         },
-                        'backgroundColor': '#90EE90', # LightGreen for profit
-                        'color': 'black'
+                        'backgroundColor': '#FFEBEE', # Very light red for loss (subtler)
+                        'color': '#CC0000' # Dark red text for contrast
                     },
                     {
                         'if': {
-                            'filter_query': '{Realized P&L} = 0'
+                            'column_id': 'Status', # Target only the Status column
+                            'filter_query': '{Status} = "BE" || {Status} = "Active"' # Condition for Break-Even or Active status
                         },
-                        'backgroundColor': '#FFD700', # Gold for break-even
-                        'color': 'black'
-                    }
+                        'backgroundColor': '#FFFDE7', # Very light yellow for break-even
+                        'color': '#FF6F00' # Orange text
+                    },                                    
                 ],
                 style_cell={
                     'textAlign': 'left', # Keep left alignment for text, center for numbers if needed
@@ -800,7 +809,7 @@ def update_pnl_breakdown_charts(rows, selected_category):
     return html.Div(charts_to_display)
 
 #####################################################################
-# COMBINED CALLBACK: Handles all table and pressing index updates
+# COMBINED CALLBACK: Handles all table updates and pressing index updates
 #####################################################################
 # Locate this: @dash.callback(Output('trades-table', 'data'), ...)
 # REPLACE its entire content with this:
@@ -1085,16 +1094,49 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
                             row_copy["Realized P&L"] = ""
                     
                     # Update Exit Time and Status based on Pts Realized change
-                    if (points_realized_current not in [None, ''] and status_current != "Closed"):
-                         row_copy["Status"] = "Closed"
-                         if not row_copy.get("Exit Time"):
-                             row_copy["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    elif (points_realized_current is None and points_realized_previous is not None and status_current != "Active"):
-                         row_copy["Status"] = "Active"
-                         row_copy["Realized P&L"] = ""
-                         row_copy["Exit Time"] = ""
-                         new_pressing_index = 0
-                         pressing_action_in_this_update = 'loss'
+                    # if (points_realized_current not in [None, ''] and status_current != "Closed"):
+                    #      row_copy["Status"] = "Closed"
+                    #      if not row_copy.get("Exit Time"):
+                    #          row_copy["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    # elif (points_realized_current is None and points_realized_previous is not None and status_current != "Active"):
+                    #      row_copy["Status"] = "Active"
+                    #      row_copy["Realized P&L"] = ""
+                    #      row_copy["Exit Time"] = ""
+                    #      new_pressing_index = 0
+                    #      pressing_action_in_this_update = 'loss'
+                    # NEW LOGIC: Update Status to Win/Lose/BE and fill Exit Time based on Realized P&L
+                    # This block runs after Realized P&L is calculated for the row_copy.
+                    calculated_pnl_for_status = safe_float(row_copy.get("Realized P&L"))
+
+                    if calculated_pnl_for_status is not None:
+                        if calculated_pnl_for_status > 0:
+                            new_status_text = "Win"
+                        elif calculated_pnl_for_status < 0:
+                            new_status_text = "Loss"
+                        else: # calculated_pnl_for_status == 0
+                            new_status_text = "BE" # Break-Even
+
+                        # Only change Status and Exit Time if it's not already set to this status
+                        # and if Points Realized just became a value, or value changed meaningfully.
+                        if row_copy.get("Status") != new_status_text: # Prevent redundant updates
+                            if points_realized_current not in [None, ''] and points_realized_previous in [None, '']:
+                                # Only set Exit Time if Points Realized was just entered (from blank)
+                                if not row_copy.get("Exit Time"):
+                                    row_copy["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            elif points_realized_current not in [None, ''] and points_realized_previous not in [None, ''] and points_realized_current != points_realized_previous:
+                                # If Points Realized changed, but was already non-blank, also set exit time
+                                if not row_copy.get("Exit Time"):
+                                    row_copy["Exit Time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                            row_copy["Status"] = new_status_text # Update Status text
+
+                    elif points_realized_current is None and previous_row_data_at_index.get("Points Realized") is not None:
+                        # If Points Realized was cleared, revert Status and P&L/Exit Time
+                        row_copy["Status"] = "Active" # Or initial status if cleared
+                        row_copy["Realized P&L"] = ""
+                        row_copy["Exit Time"] = ""
+                        new_pressing_index = 0
+                        pressing_action_in_this_update = 'loss' # Reset pressing roadmap if a finalized trade is un-finalized
 
                     # Update in DB (using the 'id' of the row)
                     try:
@@ -1105,8 +1147,8 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
                         db_name, table_name = db.get_database_info()
                         print(f"Error updating trade with DB ID {row_copy.get('id')} in DB '{db_name}' table '{table_name}' (from modification): {e}")
 
-                    # Evaluate pressing roadmap for this modified row if conclusive
-                    if pnl_was_calculated_and_is_conclusive and row_copy.get("Status") == "Closed":
+                    # Evaluate pressing roadmap for this modified row if conclusive                 
+                    if pnl_was_calculated_and_is_conclusive and row_copy.get("Status") in ["Win", "Lose", "BE"]: # CHANGED: Check for new Status values
                         final_pnl_for_pressing_eval = safe_float(row_copy.get("Realized P&L"))
                         if final_pnl_for_pressing_eval is not None:
                             if final_pnl_for_pressing_eval > 0:
@@ -1222,10 +1264,8 @@ def update_available_risk_gauge(rows, selected_date):
             df_filtered["Realized P&L"], errors="coerce"
         ).fillna(0)
 
-        active_risk = df_filtered[df_filtered["Status"] == "Active"]["Risk ($)"].sum()
-        realized_pnl = df_filtered[df_filtered["Status"] == "Closed"][
-            "Realized P&L"
-        ].sum()
+        active_risk = df_filtered[df_filtered["Status"] == "Active"]["Risk ($)"].sum()        
+        realized_pnl = df_filtered[df_filtered["Status"].isin(["Win", "Lose", "BE"])]["Realized P&L"].sum()
 
         available_risk = max(0, daily_risk_limit + realized_pnl - active_risk)
 

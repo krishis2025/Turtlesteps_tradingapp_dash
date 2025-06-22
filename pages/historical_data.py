@@ -213,7 +213,7 @@ layout = html.Div([
                 {"name": "Size", "id": "Size", "type": "numeric", "editable": True, "hideable": True}, # ADDED hideable: True
                 {"name": "Stop Loss (pts)", "id": "Stop Loss (pts)", "type": "numeric", "editable": True, "hideable": True}, # ADDED hideable: True
                 {"name": "Risk ($)", "id": "Risk ($)", "type": "numeric", "editable": False, "hideable": True}, # ADDED hideable: True
-                {"name": "Status", "id": "Status", "presentation": "dropdown", "hideable": True}, # ADDED hideable: True
+                {"name": "Status", "id": "Status", "presentation": "dropdown", "editable": True, "hideable": True}, # ADDED hideable: True
                 {"name": "Points Realized", "id": "Points Realized", "type": "numeric", "editable": True, "hideable": True}, # ADDED hideable: True
                 {"name": "Realized P&L", "id": "Realized P&L", "type": "numeric", "editable": False, "format": {"specifier": ".2f"}, "hideable": True}, # ADDED hideable: True
                 {"name": "Entry Time", "id": "Entry Time", "editable": False, "hideable": True}, # ADDED hideable: True

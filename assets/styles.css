@@ -171,3 +171,71 @@ img, video, canvas, svg {
   border-radius: 2px;
 }
 
+/* assets/styles.css - Add these new rules */
+
+/* --- Custom Dropdown Styling (for filters) --- */
+
+/* Style for dropdowns specifically within DataTable cells (e.g., Futures Type, Status in table) */
+/* This targets the main box of the dropdown control */
+.dash-table-container .dash-cell .Select-control {
+    border: none !important; /* Remove border for dropdowns inside table cells */
+    box-shadow: none !important; /* Remove shadow for dropdowns inside table cells */
+    background-color: transparent !important; /* Make background transparent */
+    border-radius: 0px !important; /* Remove border radius */
+    min-height: 25px !important; /* Adjust height to make it sleek */
+}
+
+
+/* Main control box of the dropdown */
+.Select-control {
+    /*border: none !important;*/ /* Remove border */
+    box-shadow: none !important; /* Remove box shadow */
+    background-color: transparent !important; /* Make background transparent */
+    border-radius: 0px !important; /* Remove border radius if any */
+    padding-left: 0px !important; /* Adjust padding if needed */
+}
+
+/* Value placeholder and currently selected value */
+.Select-placeholder, .Select--single > .Select-control .Select-value {
+    color: #4a4a4a !important; /* Darker text for visibility on light background */
+    font-size: 15px !important; /* Adjust font size if needed */
+    padding-left: 0px !important; /* Adjust padding if needed */
+}
+
+/* Arrow that indicates dropdown */
+.Select-arrow {
+    border-top-color: #4a4a4a !important; /* Darker arrow color */
+}
+
+/* When dropdown is active/focused */
+.Select-control.is-focused, .Select-control.is-open {
+    border-color: #2196F3 !important; /* Subtle blue border on focus */
+    box-shadow: 0 0 0 1px #2196F3 !important; /* Subtle blue shadow on focus */
+}
+
+/* Options in the dropdown menu */
+.Select-menu-outer {
+    border: 1px solid #ccc !important; /* Re-add border for dropdown menu itself */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15) !important; /* Subtle shadow for the menu */
+    background-color: white !important;
+    border-radius: 4px !important;
+}
+
+/* Individual options in the dropdown */
+.Select-option {
+    padding: 8px 10px !important;
+    font-size: 15px !important;
+    color: #333333 !important;
+}
+
+/* Hover effect for options */
+.Select-option.is-focused {
+    background-color: #e3f2fd !important; /* Light blue on hover */
+    color: #333333 !important;
+}
+
+/* Selected option */
+.Select-option.is-selected {
+    background-color: #2196F3 !important; /* Blue background for selected */
+    color: white !important;
+}
