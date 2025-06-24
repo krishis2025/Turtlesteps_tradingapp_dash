@@ -185,9 +185,10 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                     {"name": "Exit Time", "id": "Exit Time", "editable": True},
                     {"name": "Trade came to me", "id": "Trade came to me"}, # "presentation": "dropdown"},
                     {"name": "With Value", "id": "With Value"}, #, "presentation": "dropdown"},
+                    {"name": "Market Conditions", "id": "Market Conditions", "presentation": "dropdown", "editable": True, "hideable": True}, # NEW COLUMN
                     {"name": "Score", "id": "Score"}, #, "presentation": "dropdown"},
                     {"name": "Entry Quality", "id": "Entry Quality"}, #, "presentation": "dropdown"},
-                    {"name": "Emotional State", "id": "Emotional State"}, #, "presentation": "dropdown"},
+                    {"name": "Emotional State", "id": "Emotional State", "presentation": "dropdown", "hideable": True},
                     {"name": "Sizing", "id": "Sizing", "presentation": "dropdown"},
                     {"name": "Notes", "id": "Notes", "type": "text", "editable": True},
                 ],
@@ -226,22 +227,22 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                     },
                     'Entry Quality': {
                         'options': [
-                            {'label': ' ', 'value': ''},
-                            {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
-                            {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
-                            {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
-                            {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
+                            {'label': ' ', 'value': ''},                            
+                            {'label': 'Calm / Waited Patiently', 'value': 'Calm / Waited Patiently'},
+                            {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},                                
                             {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
+                            {'label': 'Get back losses', 'value': 'Get back losses'},
+                            {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
                         ],
                         'clearable': False
                     },
                     'Emotional State': {
                         'options': [
                             {'label': ' ', 'value': ''},
-                            {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
-                            {'label': 'Get back losses', 'value': 'Get back losses'},
-                            {'label': 'FOMO', 'value': 'FOMO'},
+                            {'label': 'Calm', 'value': 'Calm'},
+                            {'label': 'Fear of Loss', 'value': 'Fear of Loss'},                            
                             {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
+                            {'label': 'Greed', 'value': 'Greed'},
                             {'label': 'Overconfidence', 'value': 'Overconfidence'},
                             {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
                             {'label': 'Distracted', 'value': 'Distracted'},
@@ -337,7 +338,7 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
             )
         ], style={'marginTop': '20px', 'marginBottom': '20px', 'width': '100%', 'margin': '0 auto', 'overflowX': 'auto', 'padding': '0 20px'}), # Added horizontal padding
 
-        # Section for Input Fields (below table)
+        # Section for Input Fields (below table)       
         html.Div([
             html.H3("New Trade Entry", style={'textAlign': 'center', 'marginTop': '20px', 'marginBottom': '15px'}),
 
@@ -368,7 +369,23 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         )
                     ], style={'marginBottom': '15px'}),
 
-                ], style={'flex': '1 1 280px', 'padding': '0 10px', 'boxSizing': 'border-box'}), # Changed flex-basis to 280px, added boxSizing
+                    # NEW ROW: Market Conditions
+                    html.Div([
+                        html.Label("Market Conditions:", style={'fontWeight': 'bold', 'display': 'block', 'marginBottom': '5px'}),
+                        dcc.Dropdown(
+                            id='input-market-conditions', # NEW ID
+                            options=[
+                                {'label': 'Trending', 'value': 'Trending'},
+                                {'label': 'Balancing/Range', 'value': 'Balancing/Range'},
+                                {'label': ' ', 'value': ''} # Option for blank
+                            ],
+                            value='', # Default to blank
+                            clearable=False,
+                            style={'width': '100%'}
+                        )
+                    ], style={'marginBottom': '15px'}), # Consistent spacing
+
+                ], style={'flex': '1 1 auto', 'padding': '0 10px', 'boxSizing': 'border-box', 'maxWidth': 'calc(33.33% - 20px)'}),
 
                 # Column 2
                 html.Div([
@@ -378,12 +395,12 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         dcc.Dropdown(
                             id='input-entry-quality',
                             options=[
-                                {'label': ' ', 'value': ''},
-                                {'label': 'Waited Patiently', 'value': 'Waited Patiently'},
-                                {'label': 'Calm / Standard', 'value': 'Calm / Standard'},
-                                {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},
-                                {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
+                                {'label': ' ', 'value': ''},                                
+                                {'label': 'Calm / Waited Patiently', 'value': 'Calm / Waited Patiently'},
+                                {'label': 'Impulsive / FOMO', 'value': 'Impulsive / FOMO'},                                
                                 {'label': 'Forced / Overtraded', 'value': 'Forced / Overtraded'},
+                                {'label': 'Get back losses', 'value': 'Get back losses'},
+                                {'label': 'Hesitant / Missed', 'value': 'Hesitant / Missed'},
                             ],
                             value='',
                             clearable=False,
@@ -396,21 +413,21 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         dcc.Dropdown(
                             id='input-psychological-state',
                             options=[
-                                {'label': ' ', 'value': ''},
-                                {'label': 'Calm / Disciplined', 'value': 'Calm / Disciplined'},
-                                {'label': 'Get back losses', 'value': 'Get back losses'},
-                                {'label': 'FOMO', 'value': 'FOMO'},
+                                {'label': ' ', 'value': ''},                                
+                                {'label': 'Calm', 'value': 'Calm'},                                
+                                {'label': 'Fear of Loss', 'value': 'Fear of Loss'},                            
                                 {'label': 'Fear of giving away profit', 'value': 'Fear of giving away profit'},
+                                {'label': 'Greed', 'value': 'Greed'},
                                 {'label': 'Overconfidence', 'value': 'Overconfidence'},
                                 {'label': 'Frustration / Impatience', 'value': 'Frustration / Impatience'},
                                 {'label': 'Distracted', 'value': 'Distracted'},
                             ],
-                            value='',
-                            clearable=False,
+                            value='',                            
+                            clearable=False, 
                             style={'width': '100%'}
                         )
                     ], style={'marginBottom': '15px'}),
-                    #Row3: Sizing
+                    #Row3: Score
                     html.Div([
                         html.Label("Score:", style={'fontWeight': 'bold', 'marginRight': '10px'}),
                         dcc.Dropdown(
@@ -427,7 +444,7 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         )
                     ], style={'marginBottom': '0px'}),
 
-                ], style={'flex': '1 1 280px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between'}), # Changed flex-basis to 280px, added boxSizing
+                ], style={'flex': '1 1 auto', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'justifyContent': 'space-between', 'maxWidth': 'calc(33.33% - 20px)'}),
 
                 # Column 3 (Notes)
                 html.Div([
@@ -439,11 +456,11 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         value='',
                         style={'width': '100%', 'height': '180px', 'resize': 'vertical'}
                     )
-                ], style={'flex': '1 1 280px', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column'}), # Changed flex-basis to 280px, added boxSizing
+                ], style={'flex': '1 1 auto', 'padding': '0 10px', 'boxSizing': 'border-box', 'display': 'flex', 'flexDirection': 'column', 'maxWidth': 'calc(33.33% - 20px)'}),
 
-            ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px', 'boxSizing': 'border-box'}), # ADDED boxSizing
+            ], style={'display': 'flex', 'flexWrap': 'wrap', 'justifyContent': 'space-around', 'alignItems': 'flex-start', 'width': '100%', 'marginBottom': '20px', 'boxSizing': 'border-box'}),
 
-        ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px', 'boxSizing': 'border-box'}), # Added boxSizing for safety
+        ], style={'border': '1px solid #ddd', 'borderRadius': '5px', 'padding': '20px', 'marginTop': '20px', 'marginBottom': '20px', 'boxSizing': 'border-box'}),
          
 
         # Add Trade button (Moved here, and is now the only one)
@@ -825,7 +842,8 @@ def update_pnl_breakdown_charts(rows, selected_category):
     Output('input-entry-quality', 'value'),
     Output('input-psychological-state', 'value'),
     Output('input-notes', 'value'),
-    Output('input-score', 'value'),
+    Output('input-score', 'value'),    
+    Output('input-market-conditions', 'value'), # NEW OUTPUT for Market Conditions dropdown
     Input('add-trade-button', 'n_clicks'),
     Input('trades-table', 'data'), # This input triggers on ANY table change (add, edit, delete)
     State('trades-table', 'data_previous'),
@@ -836,10 +854,12 @@ def update_pnl_breakdown_charts(rows, selected_category):
     State('input-psychological-state', 'value'),
     State('input-notes', 'value'),
     State('input-score', 'value'),
+    State('input-market-conditions', 'value'), 
     prevent_initial_call=True
 )
 def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, current_pressing_index,
-                             trade_came_to_you_val, with_value_val, entry_quality_val, psychological_state_val, notes_val, score_val):
+                             trade_came_to_you_val, with_value_val, entry_quality_val, psychological_state_val, notes_val, score_val,
+                             market_conditions_val):
     ctx = callback_context
 
     if not ctx.triggered:
@@ -865,6 +885,7 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
     reset_psychological_state_val = ''
     reset_notes_val = ''
     reset_score_val = ''
+    reset_market_conditions_val = ''
 
     # --- Logic for ADDING NEW ROW via 'Add Trade' Button ---
     if trigger_id == 'add-trade-button':
@@ -906,6 +927,7 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
                 "Emotional State": psychological_state_val,
                 "Sizing": "Base",
                 "Notes": notes_val,
+                "Market Conditions": market_conditions_val, # NEW PROPERTY IN new_row
             }
             # Add the new row to the DataTable's current data list first
             updated_rows.append(new_row) 
@@ -935,7 +957,8 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
                 reset_entry_quality_val,
                 reset_psychological_state_val,
                 reset_notes_val,
-                reset_score_val
+                reset_score_val,
+                reset_market_conditions_val # NEW RETURN VALUE
             ]
 
     # --- Logic for TABLE DATA CHANGES (EDITING OR DELETING ROWS) ---
@@ -1178,7 +1201,8 @@ def handle_all_table_updates(n_clicks, current_table_data, previous_table_data, 
         dash.no_update,
         dash.no_update,
         dash.no_update,
-        dash.no_update
+        dash.no_update,
+        dash.no_update,
     ]
 
 #####################################################################
