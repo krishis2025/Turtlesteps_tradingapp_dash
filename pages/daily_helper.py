@@ -260,12 +260,13 @@ layout = html.Div(style={'width': '100%', 'boxSizing': 'border-box'}, children=[
                         'if': {'column_id': 'Status'},
                         'textAlign': 'center'
                     },
-                    {
+                    { # NEW: Color ONLY 'Risk ($)' cell if risk is too high
                         'if': {
+                            'column_id': 'Risk ($)', # Target only the 'Risk ($)' column
                             'filter_query': '{Risk ($)} > ' + str(config['daily_risk'])
                         },
-                        'backgroundColor': '#FF4136', # Red for high risk
-                        'color': 'white'
+                        'backgroundColor': '#CC0000', # Darker red for emphasis
+                        'color': 'white' # White text for contrast on dark red
                     },
                     # NEW: Cell-specific coloring for 'Status' column based on its text content
                     {

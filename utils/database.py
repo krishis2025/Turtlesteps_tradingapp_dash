@@ -66,7 +66,8 @@ COLUMNS_TO_STORE = [
     "Trade #", "Futures Type", "Size", "Stop Loss (pts)", "Risk ($)", "Status",
     "Points Realized", "Realized P&L", "Entry Time", "Exit Time",
     "Trade came to me", "With Value", "Score", "Entry Quality",
-    "Emotional State", "Sizing", "Notes"
+    "Emotional State", "Sizing", "Notes", 
+    "Market Conditions" # NEW: Add the new column here
 ]
 
 def get_db_connection():

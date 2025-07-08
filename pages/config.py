@@ -72,6 +72,28 @@ layout = html.Div([
             html.Label("Max Trades Per Day:", style={'fontWeight': 'bold', 'marginRight': '10px', 'minWidth': '150px'}),
             dcc.Input(id='config-max-trades', type='number', min=1, step=1, style={'flexGrow': 1, 'maxWidth': '300px'}),
         ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '10px'}),
+        
+        # NEW: Default Futures Type Dropdown
+        html.Div([
+            html.Label("Default Futures Type:", style={'fontWeight': 'bold', 'marginRight': '10px', 'minWidth': '150px'}),
+            dcc.Dropdown(
+                id='config-default-futures-type',
+                options=[
+                    {'label': 'ES', 'value': 'ES'},
+                    {'label': 'MES', 'value': 'MES'},
+                    {'label': 'NQ', 'value': 'NQ'} # Example: Add NQ as an option
+                ],
+                value='MES', # Default value, will be loaded from config
+                clearable=False,
+                style={'flexGrow': 1, 'maxWidth': '300px'}
+            ),
+        ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '10px'}),
+
+        # NEW: Default Futures Size Input
+        html.Div([
+            html.Label("Default Futures Size:", style={'fontWeight': 'bold', 'marginRight': '10px', 'minWidth': '150px'}),
+            dcc.Input(id='config-default-size', type='number', min=1, step=1, style={'flexGrow': 1, 'maxWidth': '300px'}),
+        ], style={'display': 'flex', 'alignItems': 'center', 'marginBottom': '10px'}),
 
         html.Div([
             html.Label("Pressing Multipliers (comma-separated):", style={'fontWeight': 'bold', 'marginRight': '10px', 'minWidth': '150px'}),
@@ -91,42 +113,62 @@ layout = html.Div([
 
 # --- Callbacks for the Config Page ---
 
+
 @dash.callback(
     [Output('config-db-name', 'value'),
      Output('config-daily-risk', 'value'),
      Output('config-profit-target', 'value'),
      Output('config-max-trades', 'value'),
-     Output('config-pressing-multipliers', 'value')],
-    Input('config-interval', 'n_intervals') # Trigger on initial page load
+     Output('config-pressing-multipliers', 'value'),
+     Output('config-default-futures-type', 'value'), # NEW OUTPUT
+     Output('config-default-size', 'value')],        # NEW OUTPUT
+    Input('config-interval', 'n_intervals')
 )
 def load_current_settings(n_intervals):
     if n_intervals > 0:
-        config_data = load_config()
+        config_data = load_config()        
         return [
-            config_data.get('database_name', 'trades.db'), # Value for the dropdown
+            config_data.get('database_name', 'trades.db'),
             config_data.get('daily_risk', 550),
             config_data.get('profit_target', 600),
             config_data.get('max_trades_per_day', 6),
-            ", ".join(map(str, config_data.get('pressing_sequence_multipliers', [1, 2, 1.5, 3])))
+            ", ".join(map(str, config_data.get('pressing_sequence_multipliers', [1, 2, 1.5, 3]))),
+            config_data.get('default_futures_type', 'MES'), # NEW RETURN VALUE
+            config_data.get('default_size', 5)             # NEW RETURN VALUE
         ]
-    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
+# Locate this section in config.py:
+# @dash.callback(
+#     Output('config-save-output', 'children'),
+#     Input('save-settings-button', 'n_clicks'),
+#     State('config-db-name', 'value'),
+#     # ... other States ...
+#     State('config-pressing-multipliers', 'value'),
+#     prevent_initial_call=True
+# )
+# def save_settings(n_clicks, db_name, daily_risk, profit_target, max_trades, pressing_multipliers_str):
+#     ...
+
+# REPLACE its entire content with this:
 @dash.callback(
     Output('config-save-output', 'children'),
     Input('save-settings-button', 'n_clicks'),
-    State('config-db-name', 'value'), # Input is now from Dropdown
+    State('config-db-name', 'value'),
     State('config-daily-risk', 'value'),
     State('config-profit-target', 'value'),
     State('config-max-trades', 'value'),
     State('config-pressing-multipliers', 'value'),
+    State('config-default-futures-type', 'value'), # NEW STATE
+    State('config-default-size', 'value'),        # NEW STATE
     prevent_initial_call=True
 )
-def save_settings(n_clicks, db_name, daily_risk, profit_target, max_trades, pressing_multipliers_str):
+def save_settings(n_clicks, db_name, daily_risk, profit_target, max_trades, pressing_multipliers_str,
+                  default_futures_type_val, default_size_val): # NEW ARGUMENTS
     if n_clicks > 0:
         try:
             new_config = load_config()
             
-            # The db_name is now directly the value from the dropdown
             new_config['database_name'] = db_name if db_name else "trades.db"
             new_config['daily_risk'] = int(daily_risk) if daily_risk is not None else 550
             new_config['profit_target'] = int(profit_target) if profit_target is not None else 600
@@ -136,6 +178,10 @@ def save_settings(n_clicks, db_name, daily_risk, profit_target, max_trades, pres
                 new_config['pressing_sequence_multipliers'] = [float(x.strip()) for x in pressing_multipliers_str.split(',') if x.strip()]
             else:
                 new_config['pressing_sequence_multipliers'] = [1, 2, 1.5, 3]
+
+            # NEW: Save default futures type and size
+            new_config['default_futures_type'] = default_futures_type_val if default_futures_type_val else "MES"
+            new_config['default_size'] = int(default_size_val) if default_size_val is not None else 5
 
             script_dir = os.path.dirname(os.path.abspath(__file__))
             project_root = os.path.join(script_dir, '..')
